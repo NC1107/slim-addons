@@ -42,6 +42,7 @@
       "kind": "code-block-runner",
       "name": "Run",
       "permission": "run",
+      "language": "javascript",
       "command": "run"
     }
   ]

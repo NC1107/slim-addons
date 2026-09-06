@@ -6,6 +6,30 @@
       "name": "Code Blocks",
       "version": "0.1.0",
       "summary": "Run a code block in your space and see its output inline, like a notebook cell."
+    },
+    {
+      "id": "json-tools",
+      "name": "JSON Tools",
+      "version": "0.1.0",
+      "summary": "Pretty-print JSON with 2-space indentation."
+    },
+    {
+      "id": "markdown-tools",
+      "name": "Markdown Tools",
+      "version": "0.1.0",
+      "summary": "Word count, character count and reading time for markdown text."
+    },
+    {
+      "id": "dice",
+      "name": "Dice",
+      "version": "0.1.0",
+      "summary": "Roll dice notation like 2d20+3."
+    },
+    {
+      "id": "hashkit",
+      "name": "Hash Kit",
+      "version": "0.1.0",
+      "summary": "SHA-256, base64 and hex encode a string."
     }
   ]
 }

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "hashkit",
+  "name": "Hash Kit",
+  "version": "0.1.0",
+  "summary": "SHA-256, base64 and hex encode a string.",
+  "description": "Adds a Use permission and three commands: sha256, base64 and hex. A member who holds the permission can transform a string with any of the three.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 64,
+      "wall_ms": 2000,
+      "fuel": 200000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/hashkit/0.1.0/module.wasm",
+    "sha256": "c952cc25ac38b7cfc773d3a54bea3e75d78049d2dda71ca4edda5d671d684fb4"
+  },
+  "permissions": [
+    {
+      "key": "use",
+      "name": "Use hash/encode tools",
+      "description": "Run sha256, base64 or hex on a string."
+    }
+  ],
+  "capabilities": [
+    "command.register",
+    "message.post"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "sha256",
+      "permission": "use",
+      "description": "Return the SHA-256 hex digest of the given string."
+    },
+    {
+      "kind": "command",
+      "name": "base64",
+      "permission": "use",
+      "description": "Base64-encode the given string."
+    },
+    {
+      "kind": "command",
+      "name": "hex",
+      "permission": "use",
+      "description": "Hex-encode the given string."
+    }
+  ]
+}

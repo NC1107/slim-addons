@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "markdown-tools",
+  "name": "Markdown Tools",
+  "version": "0.1.0",
+  "summary": "Word count, character count and reading time for markdown text.",
+  "description": "Adds an Analyze permission and a stats command. A member who holds the permission can get word count, character count and an estimated reading time for a block of markdown, either as a command or a markdown code block.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 64,
+      "wall_ms": 2000,
+      "fuel": 200000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/markdown-tools/0.1.0/module.wasm",
+    "sha256": "4c9c176b58ff138d4e6878df0c80ba062665e6c4c087fd6381536e1070e9e553"
+  },
+  "permissions": [
+    {
+      "key": "run",
+      "name": "Analyze markdown",
+      "description": "Compute word count, character count and reading time for markdown text."
+    }
+  ],
+  "capabilities": [
+    "command.register",
+    "message.post"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "stats",
+      "permission": "run",
+      "description": "Return word count, character count and estimated reading time."
+    },
+    {
+      "kind": "code-block-runner",
+      "name": "Stats",
+      "permission": "run",
+      "language": "markdown",
+      "command": "stats"
+    }
+  ]
+}
