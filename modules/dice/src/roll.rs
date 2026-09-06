@@ -3,8 +3,8 @@
 use crate::notation::{self, Notation};
 use crate::rng::SplitMix64;
 
-/// Rolls the dice notation in `input`, returning text like
-/// `Rolls: 14, 7\nModifier: +3\nTotal: 24`.
+/// Rolls the dice notation in `input`, echoing the notation so a shared or
+/// posted result says what was rolled, e.g. `2d20+3 = 30\nRolls: 9, 18, modifier +3`.
 pub fn roll(input: &str) -> Result<String, String> {
     let Notation {
         count,
@@ -23,10 +23,15 @@ pub fn roll(input: &str) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join(", ");
 
-    let mut out = format!("Rolls: {rolls_text}");
+    let notation_text = if modifier != 0 {
+        format!("{count}d{sides}{modifier:+}")
+    } else {
+        format!("{count}d{sides}")
+    };
+
+    let mut out = format!("{notation_text} = {total}\nRolls: {rolls_text}");
     if modifier != 0 {
-        out.push_str(&format!("\nModifier: {modifier:+}"));
+        out.push_str(&format!(", modifier {modifier:+}"));
     }
-    out.push_str(&format!("\nTotal: {total}"));
     Ok(out)
 }
