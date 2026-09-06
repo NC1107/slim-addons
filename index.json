@@ -22,7 +22,7 @@
     {
       "id": "dice",
       "name": "Dice",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "summary": "Roll dice notation like 2d20+3."
     },
     {
