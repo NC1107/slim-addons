@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "modules": [
+    {
+      "id": "code-exec",
+      "name": "Code Blocks",
+      "version": "0.1.0",
+      "summary": "Run a code block in your space and see its output inline, like a notebook cell."
+    }
+  ]
+}

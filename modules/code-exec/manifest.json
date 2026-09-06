@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "code-exec",
+  "name": "Code Blocks",
+  "version": "0.1.0",
+  "summary": "Run a code block in your space and see its output inline, like a notebook cell.",
+  "description": "Adds an Execute permission and a run command. A member who holds the permission can run a code block; the module executes it in slim-m's sandbox and posts the output. JavaScript first.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": { "backend": "wasm", "limits": { "memory_mb": 64, "wall_ms": 2000, "fuel": 500000000 } },
+  "artifact": { "kind": "wasm", "path": "modules/code-exec/0.1.0/module.wasm", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+  "permissions": [
+    { "key": "run", "name": "Execute code blocks", "description": "Run a code block in this space and post its output." }
+  ],
+  "capabilities": ["command.register", "message.post"],
+  "extension_points": [
+    { "kind": "command", "name": "run", "description": "Run the code block and post its output." }
+  ]
+}
