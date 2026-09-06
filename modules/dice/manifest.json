@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "dice",
   "name": "Dice",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "summary": "Roll dice notation like 2d20+3.",
   "description": "Adds a Roll permission and a roll command. A member who holds the permission can roll dice notation (NdM, optionally +/-K) and see each individual roll plus the total.",
   "author": "slim-m",
@@ -17,7 +17,7 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/dice/0.1.0/module.wasm",
+    "path": "modules/dice/0.2.0/module.wasm",
     "sha256": "f49d87464f4991e2c2cc10946b0fc1cf6e6a723c3e5cf472cfec2785ac3da2d3"
   },
   "permissions": [
@@ -37,6 +37,13 @@
       "name": "roll",
       "permission": "roll",
       "description": "Roll the given dice notation, e.g. 2d20+3."
+    },
+    {
+      "kind": "slash-command",
+      "name": "roll",
+      "permission": "roll",
+      "command": "roll",
+      "description": "Roll dice like 2d20+3"
     }
   ]
 }
