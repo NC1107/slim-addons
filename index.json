@@ -30,6 +30,12 @@
       "name": "Hash Kit",
       "version": "0.1.0",
       "summary": "SHA-256, base64 and hex encode a string."
+    },
+    {
+      "id": "game-of-life",
+      "name": "Game of Life",
+      "version": "0.1.0",
+      "summary": "Conway's Game of Life, animated inline from a life code block."
     }
   ]
 }
