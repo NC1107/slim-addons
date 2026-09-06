@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "game-of-life",
+  "name": "Game of Life",
+  "version": "0.1.0",
+  "summary": "Conway's Game of Life, animated inline from a life code block.",
+  "description": "Adds a Play permission and a life command. A member who holds the permission can seed a board from a preset (glider, gun, pulsar, ...), an ASCII drawing, or a random soup, then play, step, draw and clear it. Each generation is one sandboxed run, so the world is a pure function of its own state.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 64,
+      "wall_ms": 2000,
+      "fuel": 200000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/game-of-life/0.1.0/module.wasm",
+    "sha256": "976a64340495db92f9b93ac535fe7a86437d65cb0e282a2df9415ad726731084"
+  },
+  "permissions": [
+    {
+      "key": "play",
+      "name": "Play cellular automata",
+      "description": "Seed, play and step a Game of Life board in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register",
+    "message.post"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "life",
+      "permission": "play",
+      "description": "Seed a Game of Life board, or step one from its state."
+    },
+    {
+      "kind": "code-block-runner",
+      "name": "Play",
+      "permission": "play",
+      "language": "life",
+      "command": "life"
+    }
+  ]
+}
