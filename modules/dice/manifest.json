@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "id": "dice",
+  "name": "Dice",
+  "version": "0.1.0",
+  "summary": "Roll dice notation like 2d20+3.",
+  "description": "Adds a Roll permission and a roll command. A member who holds the permission can roll dice notation (NdM, optionally +/-K) and see each individual roll plus the total.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 64,
+      "wall_ms": 2000,
+      "fuel": 200000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/dice/0.1.0/module.wasm",
+    "sha256": "f49d87464f4991e2c2cc10946b0fc1cf6e6a723c3e5cf472cfec2785ac3da2d3"
+  },
+  "permissions": [
+    {
+      "key": "roll",
+      "name": "Roll dice",
+      "description": "Roll dice notation and post the result."
+    }
+  ],
+  "capabilities": [
+    "command.register",
+    "message.post"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "roll",
+      "permission": "roll",
+      "description": "Roll the given dice notation, e.g. 2d20+3."
+    }
+  ]
+}
