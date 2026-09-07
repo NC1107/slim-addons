@@ -34,8 +34,8 @@
     {
       "id": "game-of-life",
       "name": "Game of Life",
-      "version": "0.1.0",
-      "summary": "Conway's Game of Life, animated inline from a life code block."
+      "version": "0.2.0",
+      "summary": "Conway's Game of Life: launch it from the apps menu, or play a life code block inline."
     }
   ]
 }
