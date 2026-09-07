@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "tic-tac-toe",
+  "name": "Tic-tac-toe",
+  "version": "0.1.0",
+  "summary": "Play tic-tac-toe in the channel.",
+  "description": "Launch a tic-tac-toe board from the apps menu (or type /tic-tac-toe) and play it together in the channel - taps and the result are shared with everyone, since every move is one sandboxed frame. Press 'new game' to reset.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/tic-tac-toe/0.1.0/module.wasm",
+    "sha256": "e8e13375b75a4a5628e9c0cd9795f1157dffc7dfe55c8d6b970246942f8bba74"
+  },
+  "permissions": [
+    {
+      "key": "play",
+      "name": "Play tic-tac-toe",
+      "description": "Launch and play a tic-tac-toe board in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "play",
+      "permission": "play",
+      "description": "Play a move, or start a board."
+    },
+    {
+      "kind": "app",
+      "name": "Tic-tac-toe",
+      "permission": "play",
+      "command": "play",
+      "description": "Launch a shared tic-tac-toe board."
+    }
+  ]
+}
