@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "id": "plot",
+  "name": "Plot",
+  "version": "0.1.0",
+  "summary": "Draw a bar chart from numbers, inline.",
+  "description": "Give it numbers - `3, 7, 2, 8` or labelled `mon: 3, tue: 7` (one per line or comma-separated) - and it renders a bar chart in the channel. Type `/plot 3, 7, 2`, or write a `chart` code block and press Run. The chart is drawn as a scene, so it looks native in light and dark.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/plot/0.1.0/module.wasm",
+    "sha256": "b99c3e85a8239e8b580ff393dac408449b5314cddb3c906e5e8165b6f6222612"
+  },
+  "permissions": [
+    {
+      "key": "plot",
+      "name": "Draw charts",
+      "description": "Render charts in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "bars",
+      "permission": "plot",
+      "description": "Render a bar chart from numbers."
+    },
+    {
+      "kind": "slash-command",
+      "name": "plot",
+      "permission": "plot",
+      "command": "bars",
+      "description": "Draw a bar chart: /plot 3, 7, 2"
+    },
+    {
+      "kind": "code-block-runner",
+      "name": "Chart",
+      "permission": "plot",
+      "command": "bars",
+      "language": "chart",
+      "description": "Render a chart code block."
+    }
+  ]
+}

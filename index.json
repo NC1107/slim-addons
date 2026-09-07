@@ -36,6 +36,12 @@
       "name": "Game of Life",
       "version": "0.2.0",
       "summary": "Conway's Game of Life: launch it from the apps menu, or play a life code block inline."
+    },
+    {
+      "id": "plot",
+      "name": "Plot",
+      "version": "0.1.0",
+      "summary": "Draw a bar chart from numbers, inline."
     }
   ]
 }
