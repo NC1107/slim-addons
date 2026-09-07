@@ -48,6 +48,12 @@
       "name": "Tic-tac-toe",
       "version": "0.1.0",
       "summary": "Play tic-tac-toe in the channel."
+    },
+    {
+      "id": "table",
+      "name": "Table",
+      "version": "0.1.0",
+      "summary": "Align CSV or TSV into a neat monospace table."
     }
   ]
 }

@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "id": "table",
+  "name": "Table",
+  "version": "0.1.0",
+  "summary": "Align CSV or TSV into a neat monospace table.",
+  "description": "Paste CSV or TSV and get back an aligned monospace table with a header rule; numeric columns are right-aligned. Type `/table name,age\\nalice,30`, or write a `csv` code block and press Run. Plain-text output - it reads the same everywhere.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/table/0.1.0/module.wasm",
+    "sha256": "39b0ed7786731c4b7885d4da300e8f9d5fce84c5d073ed0da8f3684689bf5e30"
+  },
+  "permissions": [
+    {
+      "key": "table",
+      "name": "Format tables",
+      "description": "Format tables in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "format",
+      "permission": "table",
+      "description": "Align CSV/TSV into a table."
+    },
+    {
+      "kind": "slash-command",
+      "name": "table",
+      "permission": "table",
+      "command": "format",
+      "description": "Align CSV/TSV: /table a,b\\n1,2"
+    },
+    {
+      "kind": "code-block-runner",
+      "name": "Table",
+      "permission": "table",
+      "command": "format",
+      "language": "csv",
+      "description": "Format a csv code block."
+    }
+  ]
+}
