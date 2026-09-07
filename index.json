@@ -42,6 +42,12 @@
       "name": "Plot",
       "version": "0.1.0",
       "summary": "Draw a bar chart from numbers, inline."
+    },
+    {
+      "id": "tic-tac-toe",
+      "name": "Tic-tac-toe",
+      "version": "0.1.0",
+      "summary": "Play tic-tac-toe in the channel."
     }
   ]
 }
