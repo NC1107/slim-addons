@@ -15,3 +15,15 @@ slim-m's `docs/decisions/0021-modules-and-the-dock.md`.
 
 Nothing here runs until an admin installs it into a space, and then only with the
 permissions and capabilities the admin approves.
+
+## Building your own module
+
+Start from [`modules/_template/`](modules/_template/) - a copyable starter that
+builds as-is, with a text command, a slash command, and a launchable interactive
+app. Its README walks through making it yours, and
+[`scripts/package-module.sh`](scripts/package-module.sh) builds the wasm, places
+it at its versioned path, and pins its SHA-256 into the manifest.
+
+The full contract - the ABI, the manifest, every extension-point kind, the scene
+contract, limits, and publishing - is in slim-m's
+[`docs/modules/building-modules.md`](https://github.com/NC1107/slim-m/blob/main/docs/modules/building-modules.md).

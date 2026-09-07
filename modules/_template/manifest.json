@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "my-module",
+  "name": "My Module",
+  "version": "0.1.0",
+  "summary": "One line shown in the Dock catalogue.",
+  "description": "A longer explanation shown on the module's Dock page. Say what it does and how to use it.",
+  "author": "you",
+  "homepage": "https://github.com/you/your-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": { "memory_mb": 16, "wall_ms": 1000, "fuel": 50000000 }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/my-module/0.1.0/module.wasm",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "permissions": [
+    { "key": "use", "name": "Use My Module", "description": "Run this module in this space." }
+  ],
+  "capabilities": ["command.register"],
+  "extension_points": [
+    { "kind": "command", "name": "echo", "permission": "use", "description": "Echo the input back." },
+    { "kind": "command", "name": "scene", "permission": "use", "description": "Draw the interactive counter scene." },
+    { "kind": "slash-command", "name": "echo", "permission": "use", "command": "echo", "description": "Echo what you type." },
+    { "kind": "app", "name": "My Module", "permission": "use", "command": "scene", "description": "Launch the interactive counter." }
+  ]
+}
