@@ -123,8 +123,10 @@ fn parse_control(input: &str) -> Option<Control> {
 fn apply_control(control: Control) -> Result<Scene, String> {
     if let Some(rest) = control.action.strip_prefix("toggle:") {
         let mut board = Board::from_state(&control.state);
-        let (row, col) = parse_cell(rest)?;
-        board.toggle(col, row);
+        for cell in rest.split(';') {
+            let (row, col) = parse_cell(cell)?;
+            board.toggle(col, row);
+        }
         return Ok(Scene::of(&board, true));
     }
     match control.action.as_str() {
@@ -138,7 +140,15 @@ fn apply_control(control: Control) -> Result<Scene, String> {
     }
 }
 
-/// Parses a `row,col` pair from a `toggle:` action.
+/// Parses one `row,col` pair out of a `toggle:` action.
+///
+/// The action carries `;`-separated cells so a drag across the board is one
+/// sandboxed run rather than one per cell: at a round trip each, a line drawn
+/// with a finger took as long as the network did, and dropped cells whenever
+/// the client's own in-flight guard refused a second call. A single cell is
+/// just a list of one, so a client that knows nothing about this still works.
+/// The scene advertises it with `tap_batch` so a client only sends a list to a
+/// module that can read one.
 fn parse_cell(rest: &str) -> Result<(usize, usize), String> {
     let mut parts = rest.split(',');
     let row = parts.next().and_then(|p| p.trim().parse::<usize>().ok());
@@ -165,4 +175,66 @@ fn raw_alloc(len: usize) -> *mut u8 {
     }
     let layout = Layout::from_size_align(len, 1).expect("valid layout");
     unsafe { std_alloc(layout) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::life::COLS;
+
+    /// One state string in, one out, through the same path the host calls.
+    fn act(state: &str, action: &str) -> Scene {
+        apply_control(Control {
+            action: action.to_owned(),
+            state: state.to_owned(),
+        })
+        .expect("the action should apply")
+    }
+
+    #[test]
+    fn a_single_cell_still_toggles_as_it_always_did() {
+        let blank = Board::blank().to_state();
+        let after = act(&blank, "toggle:3,4");
+        assert!(after.to_json().contains("\"status\""));
+        let board = Board::from_state(&scene_state(&after));
+        assert_eq!(board.population(), 1, "exactly the named cell");
+        assert!(board.cell_string().as_bytes()[3 * COLS + 4] == b'1');
+    }
+
+    #[test]
+    fn a_list_of_cells_toggles_every_one_in_a_single_run() {
+        let blank = Board::blank().to_state();
+        let after = act(&blank, "toggle:0,0;0,1;5,5");
+        let board = Board::from_state(&scene_state(&after));
+        let cells = board.cell_string();
+        let live = |row: usize, col: usize| cells.as_bytes()[row * COLS + col] == b'1';
+        assert!(live(0, 0) && live(0, 1) && live(5, 5), "every named cell");
+        assert_eq!(board.population(), 3, "and nothing else");
+    }
+
+    #[test]
+    fn the_same_cell_twice_in_one_list_toggles_twice() {
+        // Not deduped here on purpose: the client decides what it drew, and a
+        // list is applied exactly as given so the two cannot disagree.
+        let blank = Board::blank().to_state();
+        let board = Board::from_state(&scene_state(&act(&blank, "toggle:2,2;2,2")));
+        assert_eq!(board.population(), 0);
+    }
+
+    #[test]
+    fn a_bad_cell_anywhere_in_the_list_refuses_the_whole_action() {
+        let blank = Board::blank().to_state();
+        let err = apply_control(Control {
+            action: "toggle:0,0;nonsense".to_owned(),
+            state: blank,
+        });
+        assert!(err.is_err(), "a half-applied drag would be worse than none");
+    }
+
+    /// Digs the opaque state back out of a rendered scene.
+    fn scene_state(scene: &Scene) -> String {
+        let json: serde_json::Value =
+            serde_json::from_str(&scene.to_json()).expect("the scene is json");
+        json["state"].as_str().expect("a state string").to_owned()
+    }
 }

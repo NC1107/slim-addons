@@ -2,9 +2,9 @@
   "schema": 1,
   "id": "game-of-life",
   "name": "Game of Life",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "summary": "Conway's Game of Life: launch it from the apps menu, or play a life code block inline.",
-  "description": "Adds a Play permission and a life command. A member who holds the permission can launch a live board from the composer's apps menu, or seed one from a life code block - a preset (glider, gun, pulsar, ...), an ASCII drawing, or a random soup - then play, step, draw and clear it. Each generation is one sandboxed run, so the world is a pure function of its own state.",
+  "description": "Adds a Play permission and a life command. A member who holds the permission can launch a live board from the composer's apps menu, or seed one from a life code block - a preset (glider, gun, pulsar, ...), an ASCII drawing, or a random soup - then play, step, draw and clear it. Drawing takes a whole drag in one run rather than a call per cell. Each generation is one sandboxed run, so the world is a pure function of its own state.",
   "author": "slim-m",
   "homepage": "https://github.com/NC1107/slim-addons",
   "runtime": {
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/game-of-life/0.2.0/module.wasm",
-    "sha256": "976a64340495db92f9b93ac535fe7a86437d65cb0e282a2df9415ad726731084"
+    "path": "modules/game-of-life/0.3.0/module.wasm",
+    "sha256": "553209ea4fbcaee42c46f3ad0042eb4022699916f787238942ca745f0c08e462"
   },
   "permissions": [
     {
