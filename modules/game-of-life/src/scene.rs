@@ -32,6 +32,10 @@ struct CellsOp {
     palette: Vec<&'static str>,
     gap: f32,
     tap: &'static str,
+    /// This module reads a `;`-separated list of cells in one `tap` action, so
+    /// a client may coalesce a drag into a single call. Additive: a client that
+    /// does not know the field sends one cell at a time, which still works.
+    tap_batch: bool,
 }
 
 impl Scene {
@@ -53,6 +57,7 @@ impl Scene {
                 palette: vec!["sunken", "accent"],
                 gap: 0.08,
                 tap: "toggle",
+                tap_batch: true,
             }],
             state: board.to_state(),
             controls: vec!["play", "step", "random", "clear"],
