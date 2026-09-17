@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "connect-four",
+  "name": "Connect Four",
+  "version": "0.1.0",
+  "summary": "Drop discs and get four in a row.",
+  "description": "Launch a Connect Four board from the apps menu (or type /connect-four) and play it together in the channel - tap a column and the disc falls to the lowest free row. Taps and the result are shared with everyone, since every move is one sandboxed frame. The winning four are ringed. Press 'new game' to reset.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/connect-four/0.1.0/module.wasm",
+    "sha256": "7d2abf7ba06cf7140741109a3586cdbe0f242361be46332f0c5ee393ec45fa60"
+  },
+  "permissions": [
+    {
+      "key": "play",
+      "name": "Play Connect Four",
+      "description": "Launch and play a Connect Four board in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "play",
+      "permission": "play",
+      "description": "Play a move, or start a board."
+    },
+    {
+      "kind": "app",
+      "name": "Connect Four",
+      "permission": "play",
+      "command": "play",
+      "description": "Launch a shared Connect Four board."
+    }
+  ]
+}
