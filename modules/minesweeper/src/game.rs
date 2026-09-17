@@ -51,7 +51,9 @@ fn play(input: &str) -> String {
     };
     match action.as_str() {
         "new game" | "new" => board = Board::new(board.seed.wrapping_add(0x9E37_79B9)),
-        "flag" => board.flagging = !board.flagging,
+        a if a.starts_with("flag") || a.starts_with("dig") => {
+            board.flagging = !board.flagging
+        }
         // A cell's tappable rect carries tap "c<index>".
         cell if cell.starts_with('c') => {
             if let Ok(i) = cell[1..].parse::<usize>() {
@@ -286,16 +288,28 @@ fn mask_from(s: &str) -> [bool; CELLS] {
     mask
 }
 
+/// What the mode button should say next. It names the mode it switches *to*,
+/// which is what a button does, and it means the current mode is readable
+/// without hunting for the status line.
+fn flag_control(flagging: bool) -> &'static str {
+    if flagging {
+        "dig mode"
+    } else {
+        "flag mode"
+    }
+}
+
 const CELL: f64 = 22.0;
 
-/// The classic count colours, mapped onto theme tokens rather than literals
-/// so the board follows the reader's theme.
+/// The count colours. Only the names in `resolveSceneColor` exist - there is
+/// no success or warning - and an unknown name does not fail, it silently
+/// falls back, which is how the first cut of this shipped looking fine and
+/// rendering flat. Low counts read calm, high counts read loud.
 fn count_colour(count: u8) -> &'static str {
     match count {
         1 => "accent",
-        2 => "success",
+        2 => "muted",
         3 => "danger",
-        4 => "warning",
         _ => "text",
     }
 }
@@ -319,20 +333,20 @@ fn render(board: &Board) -> String {
             ops.push(json!({
                 "op": "rect", "x": x + 1.0, "y": y + 1.0,
                 "w": CELL - 2.0, "h": CELL - 2.0,
-                "fill": "surface", "r": 2.0,
+                "fill": "bg", "r": 2.0,
             }));
             if mines[index] {
                 ops.push(json!({
                     "op": "circle", "cx": x + CELL / 2.0, "cy": y + CELL / 2.0,
                     "r": CELL / 2.0 - 6.0,
-                    "fill": if revealed && dead { "danger" } else { "textSecondary" },
+                    "fill": if revealed && dead { "danger" } else { "muted" },
                 }));
             } else {
                 let count = board.adjacent(index);
                 if count > 0 {
                     ops.push(json!({
                         "op": "text", "x": x + CELL / 2.0, "y": y + CELL / 2.0,
-                        "text": count.to_string(),
+                        "s": count.to_string(),
                         "fill": count_colour(count),
                         "align": "center",
                     }));
@@ -346,6 +360,8 @@ fn render(board: &Board) -> String {
             "op": "rect", "x": x + 1.0, "y": y + 1.0,
             "w": CELL - 2.0, "h": CELL - 2.0,
             "fill": "sunken", "r": 2.0,
+            "stroke": if board.flagging { "danger" } else { "border" },
+            "sw": if board.flagging { 1.5 } else { 0.5 },
         });
         if !over {
             cell["tap"] = json!(format!("c{index}"));
@@ -353,9 +369,11 @@ fn render(board: &Board) -> String {
         ops.push(cell);
 
         if board.flagged[index] {
+            // A filled marker rather than a glyph: it has to read at
+            // twenty-two pixels on a phone, where a character does not.
             ops.push(json!({
-                "op": "text", "x": x + CELL / 2.0, "y": y + CELL / 2.0,
-                "text": "!", "fill": "warning", "align": "center",
+                "op": "circle", "cx": x + CELL / 2.0, "cy": y + CELL / 2.0,
+                "r": CELL / 2.0 - 7.0, "fill": "danger",
             }));
         }
     }
@@ -377,8 +395,9 @@ fn render(board: &Board) -> String {
         "background": "surface",
         "ops": ops,
         "status": status,
-        // "flag" toggles the mode; "new game" always works, including after a loss.
-        "controls": ["flag", "new game"],
+        // The flag control says which mode it will put you in, so the board
+        // does not depend on the status line to tell you what a tap will do.
+        "controls": [flag_control(board.flagging), "new game"],
         "state": board.state(),
         "live": true,
     })
@@ -587,6 +606,61 @@ mod tests {
         }
         board.tap(first_mine(&mines));
         assert!(!board.dead, "the game was already over");
+    }
+
+    /// The bug that shipped in 0.1.0: the renderer reads a text op's content
+    /// from `s`, and this module wrote `text`, so every number was dropped and
+    /// the board rendered blank. Unit tests passed and the module ran fine
+    /// under wasmi - nothing compared the emitted ops against the client.
+    #[test]
+    fn revealed_counts_are_emitted_where_the_renderer_reads_them() {
+        let fresh = Board::new(2_024);
+        let mut board = Board::from_state(&fresh.state(), "c40");
+        board.tap(40);
+        // Open more of the board so a numbered cell is certain to be on screen.
+        for i in 0..CELLS {
+            if !board.mines()[i] && board.adjacent(i) > 0 && !board.flagged[i] {
+                board.revealed[i] = true;
+            }
+        }
+        let scene = render(&board);
+        assert!(
+            scene.contains(r#""s":"#),
+            "counts must be written to the key the renderer reads",
+        );
+        assert!(
+            !scene.contains(r#""op":"text","#) || !scene.contains(r#""text":""#),
+            "a text op carrying its content under `text` is dropped on the floor",
+        );
+    }
+
+    /// Only the nine names in `resolveSceneColor` exist. An unknown one does
+    /// not fail, it silently falls back - which is how success/warning shipped.
+    #[test]
+    fn every_colour_named_is_one_the_renderer_knows() {
+        const KNOWN: [&str; 9] = [
+            "bg", "surface", "sunken", "accent", "accent-soft", "muted", "text",
+            "border", "danger",
+        ];
+        let mut board = Board::new(31);
+        board.flagging = true;
+        board.tap(0);
+        board.flagging = false;
+        board.revealed[1] = true;
+        let scenes = [render(&board), render(&Board::new(7)), apply("play", "").unwrap()];
+        for scene in scenes {
+            let parsed: serde_json::Value = serde_json::from_str(&scene).unwrap();
+            for op in parsed["ops"].as_array().unwrap() {
+                for key in ["fill", "stroke"] {
+                    if let Some(name) = op[key].as_str() {
+                        assert!(
+                            name.starts_with('#') || KNOWN.contains(&name),
+                            "{key} {name:?} is not a scene colour; it falls back silently",
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
