@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "minesweeper",
+  "name": "Minesweeper",
+  "version": "0.1.0",
+  "summary": "Clear a nine-by-nine board without hitting a mine.",
+  "description": "Launch Minesweeper from the apps menu (or type /minesweeper) and clear the board together - tap to reveal, or switch to flagging to mark a mine. The first tap is always safe. Ten mines in eighty-one cells, and the field is rebuilt from a seed each frame rather than carried in the shared state, so nobody can read the answer off the board. Press 'new game' for a fresh field.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/minesweeper/0.1.0/module.wasm",
+    "sha256": "25bc0f85de7581644d5bee7a490fead8a2392119b84b8fc22eb4623ee63f1c85"
+  },
+  "permissions": [
+    {
+      "key": "play",
+      "name": "Play Minesweeper",
+      "description": "Launch and play a Minesweeper board in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "play",
+      "permission": "play",
+      "description": "Play a move, or start a board."
+    },
+    {
+      "kind": "app",
+      "name": "Minesweeper",
+      "permission": "play",
+      "command": "play",
+      "description": "Launch a shared Minesweeper board."
+    }
+  ]
+}
