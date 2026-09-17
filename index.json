@@ -58,13 +58,13 @@
     {
       "id": "connect-four",
       "name": "Connect Four",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "summary": "Drop discs and get four in a row."
     },
     {
       "id": "minesweeper",
       "name": "Minesweeper",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "summary": "Clear a nine-by-nine board without hitting a mine."
     }
   ]

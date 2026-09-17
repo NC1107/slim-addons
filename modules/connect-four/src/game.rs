@@ -185,11 +185,16 @@ fn other_player(p: char) -> char {
 const CELL: f64 = 26.0;
 const PAD: f64 = 3.0;
 
+/// Red and yellow are the game's own colours, and neither the theme palette
+/// nor its fallback has a yellow: "warning" is not a scene colour, so the
+/// first cut of this drew both players in the same fallback. Hex is allowed
+/// by the renderer and is right here - these are game pieces, not interface
+/// chrome, and they have to stay told apart in either theme.
 fn colour_for(player: char) -> &'static str {
     if player == 'R' {
-        "danger"
+        "#d94f4f"
     } else {
-        "warning"
+        "#e3b341"
     }
 }
 
@@ -375,6 +380,31 @@ mod tests {
         assert_eq!(g.winner(), Some('R'));
         g.drop_disc(5);
         assert_eq!(g.at(5, ROWS - 1), '.', "no disc lands after the game is won");
+    }
+
+    /// The bug that shipped in 0.1.0: "warning" is not one of the renderer's
+    /// nine colour names, so yellow fell back and both players drew the same.
+    /// An unknown colour never fails, it just quietly stops being that colour.
+    #[test]
+    fn the_two_players_are_drawn_in_colours_the_renderer_knows_and_can_tell_apart() {
+        const KNOWN: [&str; 9] = [
+            "bg", "surface", "sunken", "accent", "accent-soft", "muted", "text",
+            "border", "danger",
+        ];
+        let red = colour_for('R');
+        let yellow = colour_for('Y');
+        assert_ne!(red, yellow, "the players must not share a colour");
+        for name in [red, yellow] {
+            assert!(
+                name.starts_with('#') || KNOWN.contains(&name),
+                "{name:?} is not a scene colour; it falls back silently",
+            );
+        }
+
+        let g = play_columns(&[3, 4]);
+        let scene = render(&g);
+        assert!(scene.contains(red), "red disc missing from the scene");
+        assert!(scene.contains(yellow), "yellow disc missing from the scene");
     }
 
     #[test]

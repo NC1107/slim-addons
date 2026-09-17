@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "minesweeper",
   "name": "Minesweeper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "summary": "Clear a nine-by-nine board without hitting a mine.",
   "description": "Launch Minesweeper from the apps menu (or type /minesweeper) and clear the board together - tap to reveal, or switch to flagging to mark a mine. The first tap is always safe. Ten mines in eighty-one cells, and the field is rebuilt from a seed each frame rather than carried in the shared state, so nobody can read the answer off the board. Press 'new game' for a fresh field.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/minesweeper/0.1.0/module.wasm",
-    "sha256": "25bc0f85de7581644d5bee7a490fead8a2392119b84b8fc22eb4623ee63f1c85"
+    "path": "modules/minesweeper/0.2.0/module.wasm",
+    "sha256": "aa56ae7f654f2ad4e52620001d39cf40819b281d1ae266d900b7f84fd51887c9"
   },
   "permissions": [
     {

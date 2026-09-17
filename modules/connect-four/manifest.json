@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "connect-four",
   "name": "Connect Four",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "summary": "Drop discs and get four in a row.",
   "description": "Launch a Connect Four board from the apps menu (or type /connect-four) and play it together in the channel - tap a column and the disc falls to the lowest free row. Taps and the result are shared with everyone, since every move is one sandboxed frame. The winning four are ringed. Press 'new game' to reset.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/connect-four/0.1.0/module.wasm",
-    "sha256": "7d2abf7ba06cf7140741109a3586cdbe0f242361be46332f0c5ee393ec45fa60"
+    "path": "modules/connect-four/0.2.0/module.wasm",
+    "sha256": "0b63922f2105e51c440ae71af9ba312393d7535464d77b2ad139bc24997d1417"
   },
   "permissions": [
     {
