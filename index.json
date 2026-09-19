@@ -66,6 +66,12 @@
       "name": "Minesweeper",
       "version": "0.2.0",
       "summary": "Clear a nine-by-nine board without hitting a mine."
+    },
+    {
+      "id": "spirograph",
+      "name": "Spirograph",
+      "version": "0.1.0",
+      "summary": "Draw roulette curves with three gears, and change them by tapping."
     }
   ]
 }
