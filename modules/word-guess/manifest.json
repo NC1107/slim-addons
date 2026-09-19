@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "word-guess",
+  "name": "Word Guess",
+  "version": "0.1.0",
+  "summary": "Guess a five-letter word in six tries, typing each guess into the scene.",
+  "description": "Launch it from the apps menu. Type a five-letter guess and the tiles colour in: green for a letter in the right place, amber for one that belongs somewhere else, plain for one that is not in the word at all. Six tries, then it tells you the answer. Uses the scene contract's input op, so the guess is typed rather than tapped out on an on-screen keyboard. The answer is derived from a seed rather than stored in the state, which rides the wire on every frame.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/word-guess/0.1.0/module.wasm",
+    "sha256": "8f63eca9068c4d63c0b9120fcffa3d06c3ff70e8ac81f65ad2209226bcb08415"
+  },
+  "permissions": [
+    {
+      "key": "play",
+      "name": "Play Word Guess",
+      "description": "Launch and play a word guessing game in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "wordguess",
+      "permission": "play",
+      "description": "Start a word guessing game, or play a guess against one."
+    },
+    {
+      "kind": "app",
+      "name": "Word Guess",
+      "permission": "play",
+      "command": "wordguess",
+      "description": "Launch a word guessing game in the channel."
+    }
+  ]
+}
