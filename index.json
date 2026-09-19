@@ -72,6 +72,12 @@
       "name": "Spirograph",
       "version": "0.1.0",
       "summary": "Draw roulette curves with three gears, and change them by tapping."
+    },
+    {
+      "id": "word-guess",
+      "name": "Word Guess",
+      "version": "0.1.0",
+      "summary": "Guess a five-letter word in six tries, typing each guess into the scene."
     }
   ]
 }

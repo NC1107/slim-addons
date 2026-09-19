@@ -34,11 +34,12 @@ OPS = {
     "line": {"x1", "y1", "x2", "y2", "stroke", "sw"},
     "text": {"x", "y", "s", "fill", "size", "align"},
     "path": {"d", "fill", "stroke", "sw", "tap"},
+    "input": {"submit", "x", "y", "w", "value", "placeholder", "max"},
     "notes": {"notes"},
 }
 
 # An op that is dropped entirely when this key is missing.
-REQUIRED = {"cells": "data", "text": "s", "notes": "notes", "path": "d"}
+REQUIRED = {"cells": "data", "text": "s", "notes": "notes", "path": "d", "input": "submit"}
 
 # Keys that name a colour, so a typo falls back rather than failing.
 COLOUR_KEYS = {"fill", "stroke"}
