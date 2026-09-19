@@ -1,0 +1,19 @@
+# A local harness for running a module the way slim runs it, so a module author
+# can see what their module actually emits without installing it in a space.
+#
+# Deliberately not part of any module's build: it is a developer tool, and a
+# module must stay import-free, which this is not.
+[package]
+name = "run-module"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+# Pinned to what slim-m's own module runtime uses, so a module that runs here
+# runs there. A different engine version is a different set of accepted wasm.
+wasmi = "0.51"
+
+[profile.release]
+opt-level = 1
