@@ -28,7 +28,7 @@ COLOURS = {
 # the set of keys that op actually reads; anything else is ignored, and a key
 # the op needs but does not get makes the whole op vanish.
 OPS = {
-    "cells": {"cols", "rows", "data", "palette", "gap", "tap", "tap_batch"},
+    "cells": {"cols", "rows", "data", "palette", "gap", "tap", "tap_batch", "x", "y", "w", "h"},
     "rect": {"x", "y", "w", "h", "fill", "grad", "stroke", "sw", "r", "tap"},
     "circle": {"cx", "cy", "r", "fill", "grad", "stroke", "sw", "tap"},
     "line": {"x1", "y1", "x2", "y2", "stroke", "sw"},
