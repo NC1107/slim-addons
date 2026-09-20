@@ -87,7 +87,9 @@ fn sequence(input: &str) -> String {
     };
 
     let sound = match action.as_str() {
-        "play" => Sound::Tune,
+        // Not "play": slim reserves that for its own animation loop, which
+        // repeatedly sends `step`. See docs/modules/building-modules.md.
+        "play tune" => Sound::Tune,
         "clear" => {
             pattern.clear();
             Sound::Silent
@@ -269,7 +271,7 @@ fn render(pattern: &Pattern, sound: Sound, fresh: bool) -> String {
     let filled = pattern.filled();
     let tempo = TEMPO_NAMES[pattern.tempo];
     let status = if fresh || filled == 0 {
-        format!("tap the grid to write a tune, then press play ({tempo})")
+        format!("tap the grid to write a tune, then press play tune ({tempo})")
     } else if filled == 1 {
         format!("1 note, {tempo}")
     } else {
@@ -283,7 +285,7 @@ fn render(pattern: &Pattern, sound: Sound, fresh: bool) -> String {
         "background": "surface",
         "ops": ops,
         "status": status,
-        "controls": ["play", "tempo", "clear"],
+        "controls": ["play tune", "tempo", "clear"],
         "state": pattern.state(),
         "live": true,
     })
@@ -378,7 +380,7 @@ mod tests {
 
     #[test]
     fn play_lays_every_step_out_in_time() {
-        let scene = scene_of(r#"{"action":"play","state":"7..0............|1"}"#);
+        let scene = scene_of(r#"{"action":"play tune","state":"7..0............|1"}"#);
         let notes = notes_in(&scene);
         assert_eq!(notes.len(), 2);
         assert_eq!(notes[0]["t"], 0.0);
@@ -389,7 +391,7 @@ mod tests {
     #[test]
     fn a_full_pattern_stays_inside_the_hosts_ceilings() {
         let full = "0123456701234567|0";
-        let scene = scene_of(&format!(r#"{{"action":"play","state":"{full}"}}"#));
+        let scene = scene_of(&format!(r#"{{"action":"play tune","state":"{full}"}}"#));
         let notes = notes_in(&scene);
         assert_eq!(notes.len(), STEPS);
         assert!(
