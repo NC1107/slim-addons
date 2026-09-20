@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "music-box",
+  "name": "Music Box",
+  "version": "0.1.0",
+  "summary": "Write a short tune on a step grid, together, in the channel.",
+  "description": "Launch a step sequencer from the apps menu (or type /music-box) and write a tune into it - sixteen steps across, eight pitches up. The grid is shared with everyone looking at the message, so a step somebody else placed is there when you press play. The pitches are slim's own pentatonic set, the one the notification sounds are built from, so anything written here sounds like slim rather than like a tone generator. 'tempo' cycles three speeds and 'clear' empties the grid.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/music-box/0.1.0/module.wasm",
+    "sha256": "bbe17aca3df6ef36df8c3eb00cbb65b5da2cc88d3618ec5609cb2c32e586be04"
+  },
+  "permissions": [
+    {
+      "key": "play",
+      "name": "Use the music box",
+      "description": "Launch a music box in this space and write tunes in it."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "sequence",
+      "permission": "play",
+      "description": "Place a step, or play the tune."
+    },
+    {
+      "kind": "app",
+      "name": "Music Box",
+      "permission": "play",
+      "command": "sequence",
+      "description": "Launch a shared step sequencer."
+    }
+  ]
+}

@@ -29,17 +29,18 @@ COLOURS = {
 # the op needs but does not get makes the whole op vanish.
 OPS = {
     "cells": {"cols", "rows", "data", "palette", "gap", "tap", "tap_batch"},
-    "rect": {"x", "y", "w", "h", "fill", "stroke", "sw", "r", "tap"},
-    "circle": {"cx", "cy", "r", "fill", "stroke", "sw", "tap"},
+    "rect": {"x", "y", "w", "h", "fill", "grad", "stroke", "sw", "r", "tap"},
+    "circle": {"cx", "cy", "r", "fill", "grad", "stroke", "sw", "tap"},
     "line": {"x1", "y1", "x2", "y2", "stroke", "sw"},
     "text": {"x", "y", "s", "fill", "size", "align"},
     "path": {"d", "fill", "stroke", "sw", "tap"},
     "input": {"submit", "x", "y", "w", "value", "placeholder", "max"},
+    "image": {"x", "y", "w", "h", "b64", "tap"},
     "notes": {"notes"},
 }
 
 # An op that is dropped entirely when this key is missing.
-REQUIRED = {"cells": "data", "text": "s", "notes": "notes", "path": "d", "input": "submit"}
+REQUIRED = {"cells": "data", "text": "s", "notes": "notes", "path": "d", "input": "submit", "image": "b64"}
 
 # Keys that name a colour, so a typo falls back rather than failing.
 COLOUR_KEYS = {"fill", "stroke"}
