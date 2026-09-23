@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "id": "collision-probe",
+  "name": "Collision Probe",
+  "version": "0.1.0",
+  "summary": "Not a useful module: a live manifest demonstrating three unenforced extension-point ambiguities.",
+  "description": "Declares two `command` extension points both named `probe`, gated on different permissions (`see-public`, `see-admin`); only the first-declared one is ever checked by http::module_commands::required_permission, and the second is silently dead. Also declares a `slash-command` named `co llide` - an embedded space that manifest validation accepts but the composer's whitespace-splitting keyword match can never invoke - alongside a working `probe` alias. Built to find the edges of what a manifest may declare without the install path, the runtime, or the client ever objecting.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/collision-probe/0.1.0/module.wasm",
+    "sha256": "42f1847bd82df345bd0c68507db146133f87f233c202ce022bceb69450f96cac"
+  },
+  "permissions": [
+    {
+      "key": "see-public",
+      "name": "See public",
+      "description": "The permission actually enforced for /probe - it is declared first."
+    },
+    {
+      "key": "see-admin",
+      "name": "See admin",
+      "description": "Declared on the second, identically named command extension point. Never enforced: this permission grants nothing, because the runtime only ever consults the first command extension point of a given name."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "probe",
+      "permission": "see-public",
+      "description": "Declared first: this is the permission every /modules/collision-probe/commands/probe call is actually gated on."
+    },
+    {
+      "kind": "command",
+      "name": "probe",
+      "permission": "see-admin",
+      "description": "Declared second, same name as the command above. Dead weight: this permission is never consulted for anything."
+    },
+    {
+      "kind": "slash-command",
+      "name": "co llide",
+      "permission": "see-public",
+      "command": "probe",
+      "description": "An embedded space. Installs cleanly, but the composer's own keyword split on whitespace means this can never be typed or matched."
+    },
+    {
+      "kind": "slash-command",
+      "name": "probe",
+      "permission": "see-public",
+      "command": "probe",
+      "description": "The reachable alias - types as /probe."
+    }
+  ]
+}

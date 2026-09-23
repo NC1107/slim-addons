@@ -84,6 +84,12 @@
       "name": "Music Box",
       "version": "0.1.0",
       "summary": "Write a short tune on a step grid, together, in the channel."
+    },
+    {
+      "id": "collision-probe",
+      "name": "Collision Probe",
+      "version": "0.1.0",
+      "summary": "Not a useful module: a live manifest demonstrating three unenforced extension-point ambiguities."
     }
   ]
 }
