@@ -84,6 +84,12 @@
       "name": "Music Box",
       "version": "0.1.0",
       "summary": "Write a short tune on a step grid, together, in the channel."
+    },
+    {
+      "id": "boundary-probe",
+      "name": "Boundary Probe",
+      "version": "0.1.0",
+      "summary": "Not a useful module: deliberately misbehaves at the wasm host boundary (malformed output, traps, a fuel-vs-wall-clock loop) to show exactly how the host answers each failure."
     }
   ]
 }

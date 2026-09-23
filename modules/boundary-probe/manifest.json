@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "id": "boundary-probe",
+  "name": "Boundary Probe",
+  "version": "0.1.0",
+  "summary": "Not a useful module: deliberately misbehaves at the wasm host boundary to show how ModuleHost::run and execute_command answer each failure shape.",
+  "description": "Every command here is a distinct way a module can fail once it is already running: a response that isn't JSON, JSON of the wrong shape, both `output` and `error` set at once, a bare `null`, a run that writes nothing at all, a deliberate `unreachable` trap, a deliberate out-of-bounds memory access, and a cheap infinite loop under a fuel budget set near the manifest ceiling with a short wall clock, to show the wall-clock deadline firing before fuel would. None of this is useful output - it exists so the exact wording of each `{ \"ok\": false, \"error\": ... }` this deployment answers with is visible from a live install, not just from reading the host's source.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 500,
+      "fuel": 2000000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/boundary-probe/0.1.0/module.wasm",
+    "sha256": "c4598f77e3da28e2dc52208e70e63bc5edd6d2e92d9c5fa6cf53a2cbd5519e6b"
+  },
+  "permissions": [
+    {
+      "key": "probe",
+      "name": "Run boundary probes",
+      "description": "Run this module's deliberately-misbehaving commands in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "malformed-not-json",
+      "permission": "probe",
+      "description": "Answers with bytes that are not JSON at all."
+    },
+    {
+      "kind": "command",
+      "name": "malformed-wrong-shape",
+      "permission": "probe",
+      "description": "Answers with valid JSON that is not the {ok, output/error} object the ABI expects."
+    },
+    {
+      "kind": "command",
+      "name": "malformed-both-fields",
+      "permission": "probe",
+      "description": "Answers ok:true with both output and error set."
+    },
+    {
+      "kind": "command",
+      "name": "malformed-null",
+      "permission": "probe",
+      "description": "Answers with the JSON literal null."
+    },
+    {
+      "kind": "command",
+      "name": "no-output",
+      "permission": "probe",
+      "description": "run() returns a zero-length response region."
+    },
+    {
+      "kind": "command",
+      "name": "trap-unreachable",
+      "permission": "probe",
+      "description": "Deliberately executes wasm's unreachable instruction."
+    },
+    {
+      "kind": "command",
+      "name": "trap-out-of-bounds",
+      "permission": "probe",
+      "description": "Deliberately reads memory far past this module's own linear memory."
+    },
+    {
+      "kind": "command",
+      "name": "loop-forever",
+      "permission": "probe",
+      "description": "An unconditional loop. This manifest's fuel is set near the host's own ceiling with a short wall clock, so the wall clock - not fuel - is what stops it."
+    }
+  ]
+}
