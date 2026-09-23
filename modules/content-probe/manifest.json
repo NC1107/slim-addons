@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "content-probe",
+  "name": "Content Probe",
+  "version": "0.1.0",
+  "summary": "Reports what a fenced code block actually contained, byte for byte.",
+  "description": "A discovery tool, not a useful module: `probe` describes the input it received (byte length, character count, UTF-16 unit count, and counts of control, bidi-override and zero-width characters) instead of doing anything with it. `reflect` echoes it back unchanged. Built to find the edges of what real, user-typed content can carry through a fenced code block into a module.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/content-probe/0.1.0/module.wasm",
+    "sha256": "a3c5d744bd059ec2abf4143be1a77aaef62cabbf61c9b286b69944c94f3b0a13"
+  },
+  "permissions": [
+    {
+      "key": "use",
+      "name": "Use Content Probe",
+      "description": "Run the content probe in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "probe",
+      "permission": "use",
+      "description": "Describe the input's bytes, chars and character classes."
+    },
+    {
+      "kind": "command",
+      "name": "reflect",
+      "permission": "use",
+      "description": "Echo the input back unchanged."
+    },
+    {
+      "kind": "code-block-runner",
+      "name": "Probe in chat",
+      "permission": "use",
+      "command": "probe",
+      "language": "javascript"
+    }
+  ]
+}

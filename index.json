@@ -84,6 +84,12 @@
       "name": "Music Box",
       "version": "0.1.0",
       "summary": "Write a short tune on a step grid, together, in the channel."
+    },
+    {
+      "id": "content-probe",
+      "name": "Content Probe",
+      "version": "0.1.0",
+      "summary": "Reports what a fenced code block actually contained, byte for byte."
     }
   ]
 }
