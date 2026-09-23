@@ -84,6 +84,12 @@
       "name": "Music Box",
       "version": "0.1.0",
       "summary": "Write a short tune on a step grid, together, in the channel."
+    },
+    {
+      "id": "scene-stress",
+      "name": "Scene Stress",
+      "version": "0.1.0",
+      "summary": "Deliberately probes the scene contract's own ceilings instead of playing a game."
     }
   ]
 }

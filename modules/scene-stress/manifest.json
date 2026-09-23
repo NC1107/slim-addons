@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "id": "scene-stress",
+  "name": "Scene Stress",
+  "version": "0.1.0",
+  "summary": "Deliberately probes the scene contract's own ceilings instead of playing a game.",
+  "description": "A discovery module, not a feature: each scenario intentionally sits on or past one documented ceiling of the scene contract (the 128-per-axis grid clamp, the 512-step path cap, the 8-image/88k-base64 image caps, and the server's 64k shared-output clamp) so the actual behaviour at each boundary is visible rather than assumed. Run /stress <scenario>, optionally /stress <scenario>:<arg>, or launch it as an app with no input to see the menu.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/scene-stress/0.1.0/module.wasm",
+    "sha256": "4c798d3cef43c8ee1a753d288d2f4b7436516acfe7912f11ef2ce62eb7ccb0e4"
+  },
+  "permissions": [
+    {
+      "key": "probe",
+      "name": "Run stress scenarios",
+      "description": "Run scene-contract boundary probes in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "probe",
+      "permission": "probe",
+      "description": "Run a named boundary scenario."
+    },
+    {
+      "kind": "slash-command",
+      "name": "stress",
+      "permission": "probe",
+      "command": "probe",
+      "description": "/stress <scenario[:arg]>, or /stress alone for the menu."
+    },
+    {
+      "kind": "app",
+      "name": "Scene Stress",
+      "permission": "probe",
+      "command": "probe",
+      "description": "Launch the scenario menu in the channel."
+    }
+  ]
+}
