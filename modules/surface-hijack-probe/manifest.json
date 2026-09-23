@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "surface-hijack-probe",
+  "name": "Surface Hijack Probe",
+  "version": "0.1.0",
+  "summary": "Not a useful module: a live app whose shared board any caller holding a different module's own permission can silently overwrite.",
+  "description": "Declares one `app` extension point (`board`, gated on `own-board`). Launch it in a channel, then have anyone holding the permission of a completely different installed module POST {\"module_id\": \"<the other module>\", \"command\": \"<its command>\", \"input\": \"\"} to /messages/{thisAppsMessageId}/blocks/0/run. It succeeds and this app's shared, broadcast board is replaced by the other module's output, for every viewer, even though the caller never held `own-board` at all. `POST /messages/{id}/blocks/{n}/run` (crates/slimm-server/src/http/code_runs.rs::run) checks only that the caller can view the message and holds the *named* module's own permission (via http::module_commands::execute_command); it never checks the caller's module_id/command against the message's own app_surfaces row, which is the only place slim records which module actually launched a given app. app_surfaces itself is untouched by the overwrite - it still names this module - so the launch record and the live, rendered state can permanently disagree once this happens. Any second installed module is enough to demonstrate it; this one exists only to have a board worth defacing.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/surface-hijack-probe/0.1.0/module.wasm",
+    "sha256": "b8735bc41216a0d746534ef5b7f623dab822f8c78ff8b6e4f437dbe12ffb4b06"
+  },
+  "permissions": [
+    {
+      "key": "own-board",
+      "name": "Own the board",
+      "description": "The permission that actually governs this app - never checked by the run route on a block a caller did not launch."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "board",
+      "permission": "own-board",
+      "description": "Renders the probe's own board."
+    },
+    {
+      "kind": "app",
+      "name": "Surface Hijack Probe",
+      "permission": "own-board",
+      "command": "board",
+      "description": "Launch the probe's board, then overwrite it from an unrelated module."
+    }
+  ]
+}

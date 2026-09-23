@@ -84,6 +84,12 @@
       "name": "Music Box",
       "version": "0.1.0",
       "summary": "Write a short tune on a step grid, together, in the channel."
+    },
+    {
+      "id": "surface-hijack-probe",
+      "name": "Surface Hijack Probe",
+      "version": "0.1.0",
+      "summary": "Not a useful module: a live app whose shared board any caller holding a different module's own permission can silently overwrite."
     }
   ]
 }
