@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "id": "poll",
+  "name": "Poll",
+  "version": "0.1.0",
+  "summary": "Run a live poll in the channel and watch the bars fill in.",
+  "description": "Launch a poll from the apps menu (or type /poll Question? | option a, option b) and vote together - tap a bar to add your vote and everyone watching sees the tally update. 'close poll' stops further taps and shows the final result; 'reset' clears it and starts over. Every tap is one sandboxed frame, so the tally lives in the scene's own state rather than anywhere on the host.",
+  "author": "slim-m",
+  "homepage": "https://github.com/NC1107/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 1000,
+      "fuel": 50000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/poll/0.1.0/module.wasm",
+    "sha256": "64406c74d13207045bc4d2f2dd23a5621ffdba61b95972868504c146472b64ab"
+  },
+  "permissions": [
+    {
+      "key": "vote",
+      "name": "Use polls",
+      "description": "Create, vote in, and close polls in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "poll",
+      "permission": "vote",
+      "description": "Create a poll, cast a vote, or close one."
+    },
+    {
+      "kind": "slash-command",
+      "name": "poll",
+      "permission": "vote",
+      "command": "poll",
+      "description": "Create a poll: /poll Question? | option a, option b"
+    },
+    {
+      "kind": "app",
+      "name": "Poll",
+      "permission": "vote",
+      "command": "poll",
+      "description": "Launch a shared poll in the channel."
+    }
+  ]
+}

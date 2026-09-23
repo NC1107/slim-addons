@@ -108,6 +108,12 @@
       "name": "Palette",
       "version": "0.1.0",
       "summary": "Draw a colour palette from one hex colour, and tap to explore."
+    },
+    {
+      "id": "poll",
+      "name": "Poll",
+      "version": "0.1.0",
+      "summary": "Run a live poll in the channel, one vote per person, and watch the bars fill in."
     }
   ]
 }
