@@ -6,7 +6,7 @@
   "summary": "Word count, character count and reading time for markdown text.",
   "description": "Adds an Analyze permission and a stats command. A member who holds the permission can get word count, character count and an estimated reading time for a block of markdown, either as a command or a markdown code block.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {

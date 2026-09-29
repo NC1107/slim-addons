@@ -6,7 +6,7 @@
   "summary": "Roll dice notation like 2d20+3.",
   "description": "Adds a Roll permission and a roll command. A member who holds the permission can roll dice notation (NdM, optionally +/-K) and see each individual roll plus the total.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {

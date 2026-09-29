@@ -6,7 +6,7 @@
   "summary": "Play tic-tac-toe in the channel.",
   "description": "Launch a tic-tac-toe board from the apps menu (or type /tic-tac-toe) and play it together in the channel - taps and the result are shared with everyone, since every move is one sandboxed frame. Press 'new game' to reset.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {

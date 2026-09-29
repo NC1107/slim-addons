@@ -6,7 +6,7 @@
   "summary": "SHA-256, base64 and hex encode a string.",
   "description": "Adds a Use permission and three commands: sha256, base64 and hex. A member who holds the permission can transform a string with any of the three.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {
