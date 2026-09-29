@@ -1,6 +1,6 @@
 # slim-addons
 
-The official module registry for [slim-m](https://github.com/NC1107/slim-m).
+The official module registry for [slim-m](https://github.com/Slim-m-org/slim-m).
 
 A slim-m space installs modules from here through the Dock (space settings, admin only).
 slim-m ships the module *system*; each module here ships its own behavior. See
@@ -26,7 +26,7 @@ it at its versioned path, and pins its SHA-256 into the manifest.
 
 The full contract - the ABI, the manifest, every extension-point kind, the scene
 contract, limits, and publishing - is in slim-m's
-[`docs/modules/building-modules.md`](https://github.com/NC1107/slim-m/blob/main/docs/modules/building-modules.md).
+[`docs/modules/building-modules.md`](https://github.com/Slim-m-org/slim-m/blob/main/docs/modules/building-modules.md).
 
 ## Running a module before you install it
 

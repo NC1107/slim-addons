@@ -6,7 +6,7 @@
   "summary": "Draw a bar chart from numbers, inline.",
   "description": "Give it numbers - `3, 7, 2, 8` or labelled `mon: 3, tue: 7` (one per line or comma-separated) - and it renders a bar chart in the channel. Type `/plot 3, 7, 2`, or write a `chart` code block and press Run. The chart is drawn as a scene, so it looks native in light and dark.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {

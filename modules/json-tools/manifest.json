@@ -6,7 +6,7 @@
   "summary": "Pretty-print JSON with 2-space indentation.",
   "description": "Adds a Format permission and a format command. A member who holds the permission can pretty-print a JSON string or run it as a JSON code block; invalid JSON comes back as an error with a line/column location.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {

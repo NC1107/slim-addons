@@ -6,7 +6,7 @@
   "summary": "Align CSV or TSV into a neat monospace table.",
   "description": "Paste CSV or TSV and get back an aligned monospace table with a header rule; numeric columns are right-aligned. Type `/table name,age\\nalice,30`, or write a `csv` code block and press Run. Plain-text output - it reads the same everywhere.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {
