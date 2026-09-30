@@ -68,6 +68,10 @@ shipped before the check existed.
 
 ## Checks
 
+CI (`.github/workflows/ci.yml`) runs on every pull request and push to main.
+It runs `cargo test` and a wasm release build for each module, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py` over every app's first frame.
+
 Each module keeps its logic in plain Rust with unit tests, so `cd modules/<id> && cargo test` runs them with no wasm involved.
 
 `python3 scripts/check-catalogue.py` confirms every module has an `index.json` row that matches its manifest, that each pinned wasm still hashes to its `sha256`, and that every extension point names a permission and command the manifest declares.
+With `--base origin/main` it also fails if a wasm that main already published was changed, or a manifest was edited without bumping its version.

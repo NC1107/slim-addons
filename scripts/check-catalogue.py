@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Checks index.json against each module's manifest and pinned wasm.
 
-Run from the repo root: python3 scripts/check-catalogue.py
+Run from the repo root: python3 scripts/check-catalogue.py [--base REF]
+
+With --base, also refuses any change to a wasm that REF already published, and
+any manifest edit that keeps the version REF had, because an installed module
+only sees a change when its version is bumped.
 """
 import hashlib
 import json
 import pathlib
+import subprocess
 import sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
@@ -44,6 +49,31 @@ for mid in sorted(on_disk & listed.keys()):
             fail(mid, f"extension point {e['name']} uses an undeclared permission")
         if e["kind"] in ("slash-command", "code-block-runner", "app") and e.get("command") not in names:
             fail(mid, f"extension point {e['name']} runs an undeclared command")
+
+def at_base(ref, path):
+    done = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=root, capture_output=True)
+    return done.stdout if done.returncode == 0 else None
+
+
+def check_against_base(ref):
+    listing = subprocess.run(["git", "ls-tree", "-r", "--name-only", ref, "modules/"], cwd=root, capture_output=True, text=True, check=True)
+    for path in listing.stdout.split():
+        parts = path.split("/")
+        if len(parts) == 4 and parts[3] == "module.wasm" and parts[1] != "_template":
+            now = root / path
+            if not now.is_file():
+                fail(parts[1], f"{path} was published and is now gone")
+            elif now.read_bytes() != at_base(ref, path):
+                fail(parts[1], f"{path} changed after it was published; ship a new version instead")
+        if len(parts) == 3 and parts[2] == "manifest.json" and parts[1] != "_template":
+            old = json.loads(at_base(ref, path))
+            now = root / path
+            if now.is_file() and json.loads(now.read_text()) != old and json.loads(now.read_text())["version"] == old["version"]:
+                fail(parts[1], f"manifest changed but version {old['version']} did not")
+
+
+if "--base" in sys.argv:
+    check_against_base(sys.argv[sys.argv.index("--base") + 1])
 
 for p in problems:
     print(p, file=sys.stderr)
