@@ -11,6 +11,8 @@
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::seats::{Refusal, Seats};
+
 pub const COLS: usize = 7;
 pub const ROWS: usize = 6;
 const NEED: usize = 4;
@@ -20,34 +22,41 @@ const NEED: usize = 4;
 /// north-east.
 const DIRECTIONS: [(isize, isize); 4] = [(1, 0), (0, 1), (1, 1), (1, -1)];
 
-pub fn apply(command: &str, input: &str) -> Result<String, String> {
+pub fn apply(command: &str, input: &str, caller: &str) -> Result<String, String> {
     match command {
-        "play" => Ok(play(input)),
+        "play" => Ok(play(input, caller)),
         other => Err(format!("unknown command: {other}")),
     }
 }
 
-fn play(input: &str) -> String {
+fn play(input: &str, caller: &str) -> String {
     let trimmed = input.trim();
     // The launch runs with empty input: start a fresh board.
     if trimmed.is_empty() {
-        return render(&Game::new());
+        return render(&Game::new(), None);
     }
     let (action, mut game) = match serde_json::from_str::<Action>(trimmed) {
         Ok(a) => (a.action, Game::from_state(&a.state)),
         Err(_) => (String::new(), Game::new()),
     };
+    let mut note = None;
     match action.as_str() {
-        "new game" | "new" => game = Game::new(),
+        "new game" | "new" => {
+            if game.seats.may_reset(caller, game.over()) {
+                game = Game::new();
+            } else {
+                note = Some(Refusal::Illegal("only a player can restart a game in progress"));
+            }
+        }
         // A column's tappable rect carries tap "c<index>".
         col if col.starts_with('c') => {
             if let Ok(i) = col[1..].parse::<usize>() {
-                game.drop_disc(i);
+                note = game.play_column(i, caller).err();
             }
         }
         _ => {}
     }
-    render(&game)
+    render(&game, note)
 }
 
 #[derive(Deserialize)]
@@ -61,6 +70,7 @@ pub struct Game {
     /// Row 0 is the top. `cells[row * COLS + col]`.
     pub cells: [char; COLS * ROWS],
     pub turn: char,
+    pub seats: Seats,
 }
 
 impl Game {
@@ -68,13 +78,18 @@ impl Game {
         Game {
             cells: ['.'; COLS * ROWS],
             turn: 'R',
+            seats: Seats::default(),
         }
     }
 
     /// Rebuilds a game from the opaque `state` this module wrote last frame:
-    /// forty-two board chars, a `|`, then whose turn it is.
+    /// forty-two board chars, whose turn it is, then the two seat ids, all `|`
+    /// separated.
     pub fn from_state(s: &str) -> Self {
-        let (board, turn) = s.split_once('|').unwrap_or(("", "R"));
+        let mut parts = s.splitn(4, '|');
+        let board = parts.next().unwrap_or("");
+        let turn = parts.next().unwrap_or("R");
+        let seats = Seats::parse(parts.next().unwrap_or(""), parts.next().unwrap_or(""));
         let mut cells = ['.'; COLS * ROWS];
         for (i, c) in board.chars().take(COLS * ROWS).enumerate() {
             if c == 'R' || c == 'Y' {
@@ -86,12 +101,12 @@ impl Game {
             .next()
             .filter(|c| *c == 'R' || *c == 'Y')
             .unwrap_or('R');
-        Game { cells, turn }
+        Game { cells, turn, seats }
     }
 
     pub fn state(&self) -> String {
         let board: String = self.cells.iter().collect();
-        format!("{board}|{}", self.turn)
+        format!("{board}|{}|{}|{}", self.turn, self.seats.first(), self.seats.second())
     }
 
     fn at(&self, col: usize, row: usize) -> char {
@@ -105,6 +120,20 @@ impl Game {
             return None;
         }
         (0..ROWS).rev().find(|&row| self.at(col, row) == '.')
+    }
+
+    /// One person's move: seat and turn are checked before the column is.
+    pub fn play_column(&mut self, col: usize, caller: &str) -> Result<(), Refusal> {
+        if self.over() {
+            return Err(Refusal::Illegal("the game is over"));
+        }
+        let seats = self.seats.admit(caller, self.turn == 'R')?;
+        if self.landing_row(col).is_none() {
+            return Err(Refusal::Illegal("that column is full"));
+        }
+        self.drop_disc(col);
+        self.seats = seats;
+        Ok(())
     }
 
     pub fn drop_disc(&mut self, col: usize) {
@@ -198,7 +227,7 @@ fn colour_for(player: char) -> &'static str {
     }
 }
 
-fn render(game: &Game) -> String {
+fn render(game: &Game, note: Option<Refusal>) -> String {
     let width = COLS as f64 * CELL;
     let height = ROWS as f64 * CELL;
     let mut ops: Vec<Value> = Vec::new();
@@ -271,6 +300,10 @@ fn render(game: &Game) -> String {
         None if game.full() => "draw".to_string(),
         None if game.turn == 'R' => "Red to move".to_string(),
         None => "Yellow to move".to_string(),
+    };
+    let status = match note {
+        Some(refusal) => format!("{} - {status}", refusal.note()),
+        None => status,
     };
 
     json!({
@@ -402,20 +435,130 @@ mod tests {
         }
 
         let g = play_columns(&[3, 4]);
-        let scene = render(&g);
+        let scene = render(&g, None);
         assert!(scene.contains(red), "red disc missing from the scene");
         assert!(scene.contains(yellow), "yellow disc missing from the scene");
     }
 
+    const A: &str = "aa";
+    const B: &str = "bb";
+    const C: &str = "cc";
+
+    /// Plays columns in order, red being `A` and yellow `B`, and returns the last scene's JSON.
+    fn run(cols: &[usize]) -> Value {
+        let mut state = Game::new().state();
+        let mut scene = Value::Null;
+        for (n, col) in cols.iter().enumerate() {
+            let who = if n % 2 == 0 { A } else { B };
+            scene = step(&state, who, col);
+            state = scene["state"].as_str().unwrap().to_string();
+        }
+        scene
+    }
+
+    fn step(state: &str, who: &str, col: &usize) -> Value {
+        let input = format!(r#"{{"action":"c{col}","state":"{state}"}}"#);
+        serde_json::from_str(&apply("play", &input, who).unwrap()).unwrap()
+    }
+
+    fn status(scene: &Value) -> &str {
+        scene["status"].as_str().unwrap()
+    }
+
+    fn state_of(scene: &Value) -> String {
+        scene["state"].as_str().unwrap().to_string()
+    }
+
     #[test]
     fn play_launches_a_scene_and_a_tap_drops_a_disc() {
-        let initial = apply("play", "").unwrap();
+        let initial = apply("play", "", A).unwrap();
         assert!(initial.contains(r#""$slim":"scene/1""#));
         assert!(initial.contains("Red to move"));
+        assert_eq!(status(&run(&[3])), "Yellow to move");
+    }
 
-        let blank = ".".repeat(COLS * ROWS);
-        let after = apply("play", &format!(r#"{{"action":"c3","state":"{blank}|R"}}"#)).unwrap();
-        assert!(after.contains("Yellow to move"));
+    #[test]
+    fn four_in_a_row_wins_between_two_players() {
+        assert_eq!(status(&run(&[0, 6, 1, 6, 2, 6, 3])), "Red wins");
+    }
+
+    #[test]
+    fn a_full_board_with_no_four_is_a_draw() {
+        let cols = [
+            0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4,
+            4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6,
+        ];
+        assert_eq!(status(&run(&cols)), "draw");
+    }
+
+    #[test]
+    fn the_same_person_cannot_drop_twice_in_a_row() {
+        let after = run(&[3]);
+        let again = step(&state_of(&after), A, &4);
+        assert!(status(&again).starts_with("not your turn"));
+        assert_eq!(state_of(&again), state_of(&after));
+    }
+
+    #[test]
+    fn the_second_person_cannot_move_out_of_turn() {
+        let after = run(&[3, 4]);
+        let early = step(&state_of(&after), B, &5);
+        assert!(status(&early).starts_with("not your turn"));
+        assert_eq!(state_of(&early), state_of(&after));
+    }
+
+    #[test]
+    fn a_full_column_is_refused_without_costing_the_turn_or_a_seat() {
+        let filled = run(&[0; ROWS]);
+        let refused = step(&state_of(&filled), A, &0);
+        assert!(status(&refused).starts_with("that column is full"));
+        assert_eq!(state_of(&refused), state_of(&filled));
+        let off_board = step(&Game::new().state(), C, &9);
+        assert!(status(&off_board).starts_with("that column is full"));
+        assert_eq!(state_of(&off_board), Game::new().state(), "an illegal move claims no seat");
+    }
+
+    #[test]
+    fn a_third_person_watches_and_cannot_move() {
+        let after = run(&[3, 4]);
+        assert!(status(&step(&state_of(&after), C, &5)).starts_with("both sides are taken"));
+    }
+
+    #[test]
+    fn nobody_moves_after_the_game_is_won() {
+        let won = run(&[0, 6, 1, 6, 2, 6, 3]);
+        let out = step(&state_of(&won), B, &5);
+        assert!(status(&out).starts_with("the game is over"));
+        assert_eq!(state_of(&out), state_of(&won));
+    }
+
+    #[test]
+    fn an_unidentified_caller_cannot_move() {
+        let out: Value = serde_json::from_str(
+            &apply("play", &format!(r#"{{"action":"c3","state":"{}"}}"#, Game::new().state()), "").unwrap(),
+        )
+        .unwrap();
+        assert!(status(&out).starts_with("this server did not say who you are"));
+    }
+
+    #[test]
+    fn only_a_player_can_restart_a_game_in_progress() {
+        let state = state_of(&run(&[3, 4]));
+        let input = format!(r#"{{"action":"new game","state":"{state}"}}"#);
+        assert!(apply("play", &input, C).unwrap().contains("only a player can restart"));
+        assert!(apply("play", &input, A).unwrap().contains(&format!(r#""state":"{}""#, Game::new().state())));
+    }
+
+    #[test]
+    fn a_finished_game_can_be_restarted_by_anyone() {
+        let state = state_of(&run(&[0, 6, 1, 6, 2, 6, 3]));
+        let input = format!(r#"{{"action":"new game","state":"{state}"}}"#);
+        assert!(apply("play", &input, C).unwrap().contains("Red to move"));
+    }
+
+    #[test]
+    fn the_same_inputs_give_the_same_board() {
+        assert_eq!(state_of(&run(&[3, 3, 4, 2])), state_of(&run(&[3, 3, 4, 2])));
     }
 
     #[test]
@@ -424,7 +567,7 @@ mod tests {
         for _ in 0..ROWS {
             g.drop_disc(0);
         }
-        let scene = render(&g);
+        let scene = render(&g, None);
         assert!(
             !scene.contains(r#""tap":"c0""#),
             "a column nobody can play must not invite a tap",
@@ -435,9 +578,8 @@ mod tests {
     #[test]
     fn new_game_resets_from_any_state() {
         let g = play_columns(&[0, 1, 2]);
-        let out = apply("play", &format!(r#"{{"action":"new game","state":"{}"}}"#, g.state()))
-            .unwrap();
+        let out = apply("play", &format!(r#"{{"action":"new game","state":"{}"}}"#, g.state()), A).unwrap();
         assert!(out.contains("Red to move"));
-        assert!(out.contains(&format!(r#""state":"{}|R""#, ".".repeat(COLS * ROWS))));
+        assert!(out.contains(&format!(r#""state":"{}""#, Game::new().state())));
     }
 }
