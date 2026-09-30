@@ -65,3 +65,9 @@ python3 scripts/check-scene-ops.py "$R" modules/spirograph/0.1.0/module.wasm spi
 This is worth running on malformed input too. A scene op the client drops does
 not fail loudly anywhere - it just does not draw - which is how three of these
 shipped before the check existed.
+
+## Checks
+
+Each module keeps its logic in plain Rust with unit tests, so `cd modules/<id> && cargo test` runs them with no wasm involved.
+
+`python3 scripts/check-catalogue.py` confirms every module has an `index.json` row that matches its manifest, that each pinned wasm still hashes to its `sha256`, and that every extension point names a permission and command the manifest declares.

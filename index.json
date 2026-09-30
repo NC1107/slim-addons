@@ -84,6 +84,30 @@
       "name": "Music Box",
       "version": "0.1.0",
       "summary": "Write a short tune on a step grid, together, in the channel."
+    },
+    {
+      "id": "calc",
+      "name": "Calc",
+      "version": "0.1.0",
+      "summary": "Evaluate arithmetic with variables, a line at a time."
+    },
+    {
+      "id": "regex-tester",
+      "name": "Regex Tester",
+      "version": "0.1.0",
+      "summary": "Show every match of a regex in some text, with its groups."
+    },
+    {
+      "id": "cron-explain",
+      "name": "Cron Explain",
+      "version": "0.1.0",
+      "summary": "Explain a cron schedule field by field, and list its next runs."
+    },
+    {
+      "id": "palette",
+      "name": "Palette",
+      "version": "0.1.0",
+      "summary": "Draw a colour palette from one hex colour, and tap to explore."
     }
   ]
 }
