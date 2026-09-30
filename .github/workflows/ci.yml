@@ -22,6 +22,8 @@ jobs:
         with:
           target: wasm32-unknown-unknown
           cache: false
+          rustflags: ""
+      # A module's .cargo/config.toml (code-exec needs one) is only read from the directory cargo runs in.
       - name: Test and build every module
         run: |
           set -euo pipefail
@@ -30,18 +32,24 @@ jobs:
             locked=""
             [ -f "$dir/Cargo.lock" ] && locked="--locked"
             echo "::group::$dir"
-            cargo test $locked --manifest-path "$dir/Cargo.toml"
-            cargo build $locked --release --target wasm32-unknown-unknown --manifest-path "$dir/Cargo.toml"
+            (
+              cd "$dir"
+              cargo test $locked
+              cargo build $locked --release --target wasm32-unknown-unknown
+            )
             echo "::endgroup::"
           done
       - name: Check the catalogue
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          base=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="--base origin/${{ github.base_ref }}"
+          args=()
+          if [ "$EVENT" = "pull_request" ]; then
+            args=(--base "origin/$BASE_REF")
           fi
-          python3 scripts/check-catalogue.py $base
+          python3 scripts/check-catalogue.py "${args[@]}"
       - name: Check every app's first scene
         run: |
-          cargo build --locked --release --manifest-path tools/run-module/Cargo.toml
+          (cd tools/run-module && cargo build --locked --release)
           python3 scripts/check-app-scenes.py target/release/run-module
