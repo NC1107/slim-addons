@@ -1,47 +1,35 @@
 //! Poll: create a poll, tap a bar to vote, tap "close poll" to lock it.
 //!
-//! Every frame is a fresh sandboxed call. The whole poll rides in the scene's
-//! opaque `state` as `<open>\x1e<question>\x1e<label>\x1fvotes\x1e<label>\x1fvotes...`,
-//! and nothing is remembered on the host between calls - the same shape every
-//! other scene module here uses.
-//!
-//! One thing this module cannot do, and no scene module can: know who tapped.
-//! The request a module receives is `{command, input}` and nothing else - no
-//! caller id, no channel id - so "one vote per person" is not enforceable
-//! here. Closing the poll bounds the damage (nobody can pad the count once a
-//! result is locked in), but while it is open, the same finger can tap a bar
-//! as many times as it likes. A capability that only *told* a module who was
-//! calling, short of letting it act on their behalf, would fix this; nothing
-//! that narrow exists yet (see slim-m's docs/decisions/0023).
+//! Every frame is a fresh sandboxed call. The poll and its voter rows ride in
+//! the scene's opaque `state` (see `ledger`), and nothing is remembered on the
+//! host between calls. The caller id the host sends is what makes a vote
+//! belong to a person; the state is client-echoed, so it is not authoritative.
 
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-const FIELD: char = '\u{1e}'; // separates open-flag / question / options-blob
-const ITEM: char = '\u{1f}'; // separates one option's label from its count
-const ENTRY: char = '\u{1d}'; // separates option entries within the blob
+use crate::ledger::{Cast, Poll};
 
 const MIN_OPTIONS: usize = 2;
 const MAX_OPTIONS: usize = 6;
 const MAX_QUESTION: usize = 60;
 const MAX_OPTION: usize = 20;
 
-pub fn apply(command: &str, input: &str) -> Result<String, String> {
+pub fn apply(command: &str, input: &str, caller: &str) -> Result<String, String> {
     match command {
-        "poll" => Ok(handle(input)),
+        "poll" => Ok(handle(input, caller)),
         other => Err(format!("unknown command: {other}")),
     }
 }
 
-fn handle(input: &str) -> String {
+fn handle(input: &str, caller: &str) -> String {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return render_setup(None);
     }
     match serde_json::from_str::<Action>(trimmed) {
-        Ok(action) => dispatch(action),
-        // Not an interactive frame: a slash-command launch hands the typed
-        // text straight through, so treat it as a poll definition.
+        Ok(action) => dispatch(action, caller),
+        // A slash-command launch hands the typed text straight through, so treat it as a poll definition.
         Err(_) => match parse_setup(trimmed) {
             Ok(poll) => render_poll(&poll, None),
             Err(msg) => render_setup(Some(&msg)),
@@ -49,7 +37,7 @@ fn handle(input: &str) -> String {
     }
 }
 
-fn dispatch(action: Action) -> String {
+fn dispatch(action: Action, caller: &str) -> String {
     let existing = Poll::parse(&action.state);
 
     if let Some(rest) = action.action.strip_prefix("setup:") {
@@ -62,20 +50,19 @@ fn dispatch(action: Action) -> String {
         return render_setup(None);
     }
     if let Some(rest) = action.action.strip_prefix("vote:") {
-        return match existing {
-            Some(mut poll) if poll.open => {
-                if let Some(option) = rest
-                    .parse::<usize>()
-                    .ok()
-                    .and_then(|i| poll.options.get_mut(i))
-                {
-                    option.votes = option.votes.saturating_add(1);
-                }
-                render_poll(&poll, None)
-            }
-            Some(poll) => render_poll(&poll, Some("poll is closed")),
-            None => render_setup(Some("start a poll first")),
+        let Some(mut poll) = existing else {
+            return render_setup(Some("start a poll first"));
         };
+        let outcome = match rest.parse::<usize>() {
+            Ok(option) => poll.cast(caller, option),
+            Err(_) => Err(crate::ledger::Refusal::NoSuchOption),
+        };
+        let note = match outcome {
+            Ok(Cast::Moved) => Some("a vote moved"),
+            Ok(Cast::New | Cast::Unchanged) => None,
+            Err(refusal) => Some(refusal.note()),
+        };
+        return render_poll(&poll, note);
     }
     if action.action == "close" {
         return match existing {
@@ -100,70 +87,8 @@ struct Action {
     state: String,
 }
 
-struct OptionTally {
-    label: String,
-    votes: u32,
-}
-
-struct Poll {
-    open: bool,
-    question: String,
-    options: Vec<OptionTally>,
-}
-
-impl Poll {
-    fn parse(state: &str) -> Option<Self> {
-        let mut fields = state.split(FIELD);
-        let open = fields.next()? == "1";
-        let question = fields.next()?.to_string();
-        let blob = fields.next().unwrap_or("");
-        if question.is_empty() {
-            return None;
-        }
-        let options: Vec<OptionTally> = blob
-            .split(ENTRY)
-            .filter(|entry| !entry.is_empty())
-            .filter_map(|entry| {
-                let (label, votes) = entry.split_once(ITEM)?;
-                Some(OptionTally {
-                    label: label.to_string(),
-                    votes: votes.parse().unwrap_or(0),
-                })
-            })
-            .collect();
-        if options.len() < MIN_OPTIONS {
-            return None;
-        }
-        Some(Poll {
-            open,
-            question,
-            options,
-        })
-    }
-
-    fn state(&self) -> String {
-        let blob = self
-            .options
-            .iter()
-            .map(|o| format!("{}{}{}", o.label, ITEM, o.votes))
-            .collect::<Vec<_>>()
-            .join(&ENTRY.to_string());
-        format!(
-            "{}{FIELD}{}{FIELD}{}",
-            if self.open { "1" } else { "0" },
-            self.question,
-            blob
-        )
-    }
-
-    fn total_votes(&self) -> u32 {
-        self.options.iter().map(|o| o.votes).sum()
-    }
-}
-
-/// Sanitizes free text so it can never collide with the state's own
-/// delimiters, and bounds it so a poll stays a small drawing rather than an
-/// ever-growing one.
+/// Strips control characters, which also keeps text from colliding with the
+/// state's own delimiters, and bounds it so a poll stays a small drawing.
 fn sanitize(text: &str, max_chars: usize) -> String {
     text.chars()
         .filter(|c| !c.is_control())
@@ -182,15 +107,12 @@ fn parse_setup(text: &str) -> Result<Poll, String> {
         return Err("need a question before the |".to_string());
     }
 
-    let options: Vec<OptionTally> = options_part
+    let options: Vec<String> = options_part
         .split(',')
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(|s| OptionTally {
-            label: sanitize(s, MAX_OPTION),
-            votes: 0,
-        })
-        .filter(|o| !o.label.is_empty())
+        .map(|s| sanitize(s, MAX_OPTION))
+        .filter(|label| !label.is_empty())
         .collect();
 
     if options.len() < MIN_OPTIONS {
@@ -200,11 +122,7 @@ fn parse_setup(text: &str) -> Result<Poll, String> {
         return Err(format!("use at most {MAX_OPTIONS} options"));
     }
 
-    Ok(Poll {
-        open: true,
-        question,
-        options,
-    })
+    Ok(Poll::new(question, options))
 }
 
 fn render_setup(refused: Option<&str>) -> String {
@@ -228,15 +146,16 @@ fn render_setup(refused: Option<&str>) -> String {
 }
 
 fn render_poll(poll: &Poll, note: Option<&str>) -> String {
-    let total = poll.total_votes();
+    let total = poll.total();
     let mut ops: Vec<Value> = vec![json!({
         "op": "text", "x": 50.0, "y": 8.0, "s": poll.question, "fill": "text", "align": "center", "size": 7.0
     })];
 
-    for (i, option) in poll.options.iter().enumerate() {
+    for (i, label) in poll.options.iter().enumerate() {
         let y = 16.0 + (i as f64) * 13.0;
+        let votes = poll.tally(i);
         let pct = if total > 0 {
-            option.votes as f64 / total as f64
+            votes as f64 / total as f64
         } else {
             0.0
         };
@@ -258,9 +177,9 @@ fn render_poll(poll: &Poll, note: Option<&str>) -> String {
         }
 
         ops.push(json!({
-            "op": "text", "x": 13.0, "y": y + 7.0, "s": option.label, "fill": "text", "align": "left", "size": 5.5
+            "op": "text", "x": 13.0, "y": y + 7.0, "s": label, "fill": "text", "align": "left", "size": 5.5
         }));
-        let pct_label = format!("{} ({}%)", option.votes, (pct * 100.0).round() as i64);
+        let pct_label = format!("{} ({}%)", votes, (pct * 100.0).round() as i64);
         ops.push(json!({
             "op": "text", "x": 87.0, "y": y + 7.0, "s": pct_label, "fill": "text", "align": "right", "size": 5.5
         }));
@@ -268,7 +187,9 @@ fn render_poll(poll: &Poll, note: Option<&str>) -> String {
 
     let status = match note {
         Some(msg) => msg.to_string(),
-        None if poll.open => format!("{total} vote(s) - tap a bar to vote"),
+        None if poll.open => {
+            format!("{total} vote(s) - tap a bar to vote, tap another to change it")
+        }
         None => format!("final: {total} vote(s)"),
     };
 
@@ -297,90 +218,122 @@ fn render_poll(poll: &Poll, note: Option<&str>) -> String {
 mod tests {
     use super::*;
 
+    const A: &str = "aa";
+    const B: &str = "bb";
+
+    fn scene(out: &str) -> Value {
+        serde_json::from_str(out).unwrap()
+    }
+
+    fn act(action: &str, state: &str, caller: &str) -> Value {
+        let input = json!({ "action": action, "state": state }).to_string();
+        scene(&apply("poll", &input, caller).unwrap())
+    }
+
+    fn started() -> String {
+        let out = scene(&apply("poll", "q? | x, y, z", A).unwrap());
+        out["state"].as_str().unwrap().to_string()
+    }
+
+    fn counts(state: &str) -> Vec<usize> {
+        let poll = Poll::parse(state).unwrap();
+        (0..poll.options.len()).map(|i| poll.tally(i)).collect()
+    }
+
+    fn next(out: &Value) -> String {
+        out["state"].as_str().unwrap().to_string()
+    }
+
     #[test]
     fn empty_input_is_the_setup_screen() {
-        let out = apply("poll", "").unwrap();
+        let out = apply("poll", "", "").unwrap();
         assert!(out.contains(r#""$slim":"scene/1""#));
         assert!(out.contains("new poll"));
     }
 
     #[test]
     fn a_slash_command_style_string_creates_a_poll_directly() {
-        let out = apply("poll", "tabs or spaces? | tabs, spaces").unwrap();
+        let out = apply("poll", "tabs or spaces? | tabs, spaces", A).unwrap();
         assert!(out.contains("tabs or spaces?"));
         assert!(out.contains(r#""controls":["close poll","reset"]"#));
     }
 
     #[test]
-    fn setup_needs_a_pipe_and_at_least_two_options() {
+    fn setup_needs_a_pipe_and_between_two_and_six_options() {
         assert!(parse_setup("no pipe here").is_err());
         assert!(parse_setup("q? | onlyone").is_err());
         assert!(parse_setup("q? | a, b").is_ok());
+        assert!(parse_setup("q? | a, b, c, d, e, f, g").is_err());
     }
 
     #[test]
-    fn setup_rejects_too_many_options() {
-        let text = "q? | a, b, c, d, e, f, g";
-        assert!(parse_setup(text).is_err());
+    fn a_vote_shows_in_the_bar_and_the_state() {
+        let out = act("vote:1", &started(), A);
+        assert_eq!(counts(&next(&out)), vec![0, 1, 0]);
+        assert!(out["status"].as_str().unwrap().starts_with("1 vote(s)"));
     }
 
     #[test]
-    fn voting_increments_the_right_option_and_state_round_trips() {
-        let poll = parse_setup("pizza or tacos? | pizza, tacos").unwrap();
-        let state = poll.state();
-        let action = Action {
-            action: "vote:1".to_string(),
-            state,
-        };
-        let out = dispatch(action);
-        let reparsed = Poll::parse(&extract_state(&out)).unwrap();
-        assert_eq!(reparsed.options[0].votes, 0);
-        assert_eq!(reparsed.options[1].votes, 1);
+    fn a_person_tapping_the_same_bar_repeatedly_counts_once() {
+        let mut state = started();
+        for _ in 0..5 {
+            state = next(&act("vote:0", &state, A));
+        }
+        assert_eq!(counts(&state), vec![1, 0, 0]);
     }
 
     #[test]
-    fn closing_stops_further_votes_from_landing() {
-        let mut poll = parse_setup("q? | a, b").unwrap();
-        poll.options[0].votes = 3;
-        let closed_state = {
-            poll.open = false;
-            poll.state()
-        };
-        let action = Action {
-            action: "vote:0".to_string(),
-            state: closed_state,
-        };
-        let out = dispatch(action);
-        let reparsed = Poll::parse(&extract_state(&out)).unwrap();
-        assert_eq!(
-            reparsed.options[0].votes, 3,
-            "a closed poll must not accept a vote"
-        );
-        assert!(out.contains("poll is closed"));
+    fn changing_a_vote_moves_it_and_says_so() {
+        let state = next(&act("vote:0", &started(), A));
+        let out = act("vote:2", &state, A);
+        assert_eq!(counts(&next(&out)), vec![0, 0, 1]);
+        assert_eq!(out["status"], "a vote moved");
+    }
+
+    #[test]
+    fn a_second_person_adds_a_vote_and_a_third_option_is_counted() {
+        let state = next(&act("vote:0", &started(), A));
+        let state = next(&act("vote:0", &state, B));
+        assert_eq!(counts(&state), vec![2, 0, 0]);
+        let state = next(&act("vote:2", &state, "cc"));
+        assert_eq!(counts(&state), vec![2, 0, 1]);
+    }
+
+    #[test]
+    fn a_closed_poll_refuses_votes_and_keeps_the_count() {
+        let state = next(&act("vote:0", &started(), A));
+        let closed = next(&act("close", &state, A));
+        let out = act("vote:1", &closed, B);
+        assert_eq!(counts(&next(&out)), vec![1, 0, 0]);
+        assert_eq!(out["status"], "poll is closed");
+        assert!(!out.to_string().contains("vote:"));
+    }
+
+    #[test]
+    fn a_caller_with_no_id_cannot_vote_and_the_poll_is_unchanged() {
+        let start = started();
+        let out = act("vote:0", &start, "");
+        assert_eq!(counts(&next(&out)), vec![0, 0, 0]);
+        assert_eq!(out["status"], "this server did not say who you are");
+    }
+
+    #[test]
+    fn a_vote_with_no_poll_behind_it_asks_to_start_one() {
+        let out = act("vote:0", "", A);
+        assert_eq!(out["status"], "start a poll first");
     }
 
     #[test]
     fn reset_discards_the_poll_and_returns_to_setup() {
-        let action = Action {
-            action: "reset".to_string(),
-            state: String::new(),
-        };
-        let out = dispatch(action);
+        let out = apply("poll", r#"{"action":"reset","state":""}"#, A).unwrap();
         assert!(out.contains("new poll"));
     }
 
     #[test]
     fn a_question_or_option_cannot_smuggle_the_state_delimiters() {
-        let evil_question = format!("evil{FIELD}question{ENTRY}{ITEM}?");
-        let poll = parse_setup(&format!("{evil_question} | a, b")).unwrap();
-        let state = poll.state();
-        let reparsed =
-            Poll::parse(&state).expect("state must still parse after a hostile question");
+        let evil = format!("evil{}question{}{}?", '\u{1e}', '\u{1d}', '\u{1f}');
+        let poll = parse_setup(&format!("{evil} | a, b")).unwrap();
+        let reparsed = Poll::parse(&poll.state()).expect("state parses after a hostile question");
         assert_eq!(reparsed.options.len(), 2);
-    }
-
-    fn extract_state(scene_json: &str) -> String {
-        let value: Value = serde_json::from_str(scene_json).unwrap();
-        value["state"].as_str().unwrap().to_string()
     }
 }

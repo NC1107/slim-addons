@@ -3,10 +3,10 @@
   "id": "poll",
   "name": "Poll",
   "version": "0.1.0",
-  "summary": "Run a live poll in the channel and watch the bars fill in.",
-  "description": "Launch a poll from the apps menu (or type /poll Question? | option a, option b) and vote together - tap a bar to add your vote and everyone watching sees the tally update. 'close poll' stops further taps and shows the final result; 'reset' clears it and starts over. Every tap is one sandboxed frame, so the tally lives in the scene's own state rather than anywhere on the host.",
+  "summary": "Run a live poll in the channel, one vote per person, and watch the bars fill in.",
+  "description": "Launch a poll from the apps menu (or type /poll Question? | option a, option b) and vote together. Each person has one vote: tap a bar to vote, tap another to move it. 'close poll' stops further votes and shows the result; 'reset' starts over. The poll and an opaque per-module id for each voter are kept in the message itself; the module stores nothing and learns nothing else about you. Because that state passes through each member's client, this stops accidents and casual padding, not a member who forges it.",
   "author": "slim-m",
-  "homepage": "https://github.com/NC1107/slim-addons",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
     "backend": "wasm",
     "limits": {
@@ -18,7 +18,7 @@
   "artifact": {
     "kind": "wasm",
     "path": "modules/poll/0.1.0/module.wasm",
-    "sha256": "64406c74d13207045bc4d2f2dd23a5621ffdba61b95972868504c146472b64ab"
+    "sha256": "a4d3da4708a0031f16b1cf1f66fd443c29db35e6668c0d6d81106442c335c6c3"
   },
   "permissions": [
     {

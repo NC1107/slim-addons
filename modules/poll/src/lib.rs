@@ -1,6 +1,6 @@
 //! poll: a live vote-tally scene launched as an app, driven entirely by the
 //! interactive scene loop. `lib.rs` is the ABI shim; the poll logic is in
-//! `command.rs`.
+//! `command.rs`, and the voter rows in `ledger.rs`.
 //!
 //! Conforms to slim's module ABI v1 (see the deployment's
 //! docs/modules/building-modules.md): exports `memory`, `alloc(len) -> ptr`
@@ -9,6 +9,7 @@
 //! `{"ok":true,"output":...}` or `{"ok":false,"error":...}`.
 
 mod command;
+mod ledger;
 
 use std::alloc::{alloc as std_alloc, Layout};
 use std::cell::RefCell;
@@ -19,6 +20,14 @@ use serde::{Deserialize, Serialize};
 struct Request {
     command: String,
     input: String,
+    #[serde(default)]
+    caller: Caller,
+}
+
+#[derive(Deserialize, Default)]
+struct Caller {
+    #[serde(default)]
+    id: String,
 }
 
 #[derive(Serialize)]
@@ -75,7 +84,7 @@ fn handle(request: &[u8]) -> Vec<u8> {
         Err(err) => return serialize_err(format!("invalid request: {err}")),
     };
 
-    match command::apply(&parsed.command, &parsed.input) {
+    match command::apply(&parsed.command, &parsed.input, &parsed.caller.id) {
         Ok(output) => serialize_ok(output),
         Err(message) => serialize_err(message),
     }
