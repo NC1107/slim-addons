@@ -6,6 +6,8 @@
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::seats::{Refusal, Seats};
+
 const LINES: [[usize; 3]; 8] = [
     [0, 1, 2],
     [3, 4, 5],
@@ -17,35 +19,42 @@ const LINES: [[usize; 3]; 8] = [
     [2, 4, 6],
 ];
 
-pub fn apply(command: &str, input: &str) -> Result<String, String> {
+pub fn apply(command: &str, input: &str, caller: &str) -> Result<String, String> {
     match command {
-        "play" => Ok(play(input)),
+        "play" => Ok(play(input, caller)),
         other => Err(format!("unknown command: {other}")),
     }
 }
 
-fn play(input: &str) -> String {
+fn play(input: &str, caller: &str) -> String {
     let trimmed = input.trim();
     // The launch runs with empty input: start a fresh board.
     if trimmed.is_empty() {
-        return render(&Game::new());
+        return render(&Game::new(), None);
     }
     // Otherwise it is an interactive frame: {action, state}.
     let (action, mut game) = match serde_json::from_str::<Action>(trimmed) {
         Ok(a) => (a.action, Game::from_state(&a.state)),
         Err(_) => (String::new(), Game::new()),
     };
+    let mut note = None;
     match action.as_str() {
-        "new game" | "new" => game = Game::new(),
+        "new game" | "new" => {
+            if game.seats.may_reset(caller, game.over()) {
+                game = Game::new();
+            } else {
+                note = Some(Refusal::Illegal("only a player can restart a game in progress"));
+            }
+        }
         // A cell's tappable rect carries tap "p<index>", so the action is "p4" for cell 4.
         cell if cell.starts_with('p') => {
             if let Ok(i) = cell[1..].parse::<usize>() {
-                game.mark(i);
+                note = game.play_at(i, caller).err();
             }
         }
         _ => {}
     }
-    render(&game)
+    render(&game, note)
 }
 
 #[derive(Deserialize)]
@@ -58,6 +67,7 @@ struct Action {
 struct Game {
     cells: [char; 9],
     turn: char,
+    seats: Seats,
 }
 
 impl Game {
@@ -65,13 +75,18 @@ impl Game {
         Game {
             cells: ['.'; 9],
             turn: 'X',
+            seats: Seats::default(),
         }
     }
 
     /// Rebuilds a game from the opaque `state` string this module wrote last
-    /// frame: nine board chars, a `|`, then whose turn it is.
+    /// frame: nine board chars, whose turn it is, then the two seat ids, all
+    /// `|` separated.
     fn from_state(s: &str) -> Self {
-        let (board, turn) = s.split_once('|').unwrap_or(("", "X"));
+        let mut parts = s.splitn(4, '|');
+        let board = parts.next().unwrap_or("");
+        let turn = parts.next().unwrap_or("X");
+        let seats = Seats::parse(parts.next().unwrap_or(""), parts.next().unwrap_or(""));
         let mut cells = ['.'; 9];
         for (i, c) in board.chars().take(9).enumerate() {
             if c == 'X' || c == 'O' {
@@ -83,12 +98,12 @@ impl Game {
             .next()
             .filter(|c| *c == 'X' || *c == 'O')
             .unwrap_or('X');
-        Game { cells, turn }
+        Game { cells, turn, seats }
     }
 
     fn state(&self) -> String {
         let board: String = self.cells.iter().collect();
-        format!("{board}|{}", self.turn)
+        format!("{board}|{}|{}|{}", self.turn, self.seats.first(), self.seats.second())
     }
 
     fn winner(&self) -> Option<char> {
@@ -104,6 +119,20 @@ impl Game {
 
     fn over(&self) -> bool {
         self.winner().is_some() || self.full()
+    }
+
+    /// One person's move: seat and turn are checked before the cell is.
+    fn play_at(&mut self, i: usize, caller: &str) -> Result<(), Refusal> {
+        if self.over() {
+            return Err(Refusal::Illegal("the game is over"));
+        }
+        let seats = self.seats.admit(caller, self.turn == 'X')?;
+        if i >= 9 || self.cells[i] != '.' {
+            return Err(Refusal::Illegal("that square is taken"));
+        }
+        self.mark(i);
+        self.seats = seats;
+        Ok(())
     }
 
     fn mark(&mut self, i: usize) {
@@ -124,7 +153,7 @@ fn other_player(p: char) -> char {
 
 const CELL: f64 = 30.0;
 
-fn render(game: &Game) -> String {
+fn render(game: &Game, note: Option<Refusal>) -> String {
     let mut ops: Vec<Value> = Vec::new();
     // The grid: two lines each way across a 90x90 board.
     for k in 1..3 {
@@ -156,6 +185,10 @@ fn render(game: &Game) -> String {
         Some(w) => format!("{w} wins"),
         None if game.full() => "draw".to_string(),
         None => format!("{} to move", game.turn),
+    };
+    let status = match note {
+        Some(refusal) => format!("{} - {status}", refusal.note()),
+        None => status,
     };
 
     json!({
@@ -222,19 +255,127 @@ mod tests {
         assert_eq!(g.cells[5], '.', "no move lands after the game is won");
     }
 
+    const A: &str = "aa";
+    const B: &str = "bb";
+    const C: &str = "cc";
+
+    /// Plays `(caller, cell)` moves in order and returns the final state string.
+    fn run(moves: &[(&str, usize)]) -> String {
+        let mut state = Game::new().state();
+        for (who, cell) in moves {
+            let input = format!(r#"{{"action":"p{cell}","state":"{state}"}}"#);
+            let out = apply("play", &input, who).unwrap();
+            state = scene_state(&out);
+        }
+        state
+    }
+
+    fn scene_state(scene: &str) -> String {
+        let v: Value = serde_json::from_str(scene).unwrap();
+        v["state"].as_str().unwrap().to_string()
+    }
+
+    fn status_after(moves: &[(&str, usize)]) -> String {
+        let state = run(&moves[..moves.len() - 1]);
+        let (who, cell) = moves[moves.len() - 1];
+        let input = format!(r#"{{"action":"p{cell}","state":"{state}"}}"#);
+        let v: Value = serde_json::from_str(&apply("play", &input, who).unwrap()).unwrap();
+        v["status"].as_str().unwrap().to_string()
+    }
+
     #[test]
     fn play_launches_a_scene_and_a_tap_marks_it() {
-        let initial = apply("play", "").unwrap();
+        let initial = apply("play", "", A).unwrap();
         assert!(initial.contains(r#""$slim":"scene/1""#));
         assert!(initial.contains("X to move"));
-        let after = apply("play", r#"{"action":"p4","state":".........|X"}"#).unwrap();
+        let after = apply("play", r#"{"action":"p4","state":".........|X||"}"#, A).unwrap();
         assert!(after.contains("O to move"));
     }
 
     #[test]
     fn new_game_resets_from_any_state() {
-        let out = apply("play", r#"{"action":"new game","state":"XXXOO....|X"}"#).unwrap();
+        let out = apply("play", r#"{"action":"new game","state":"XXXOO....|X||"}"#, A).unwrap();
         assert!(out.contains("X to move"));
-        assert!(out.contains(r#""state":".........|X""#));
+        assert!(out.contains(r#""state":".........|X||""#));
+    }
+
+    #[test]
+    fn a_row_wins_between_two_players() {
+        let state = run(&[(A, 0), (B, 3), (A, 1), (B, 4), (A, 2)]);
+        assert!(state.starts_with("XXXOO...."));
+        assert_eq!(status_after(&[(A, 0), (B, 3), (A, 1), (B, 4), (A, 2)]), "X wins");
+    }
+
+    #[test]
+    fn a_full_board_with_no_line_is_a_draw() {
+        // X O X / X O O / O X X fills the board with no line.
+        let moves = [(A, 0), (B, 1), (A, 2), (B, 4), (A, 3), (B, 5), (A, 7), (B, 6), (A, 8)];
+        assert_eq!(status_after(&moves), "draw");
+    }
+
+    #[test]
+    fn the_same_person_cannot_move_twice_in_a_row() {
+        let state = run(&[(A, 4)]);
+        let again = apply("play", &format!(r#"{{"action":"p0","state":"{state}"}}"#), A).unwrap();
+        assert!(again.contains("not your turn"));
+        assert_eq!(scene_state(&again), state);
+    }
+
+    #[test]
+    fn the_second_person_cannot_move_out_of_turn() {
+        let status = status_after(&[(A, 0), (B, 1), (B, 2)]);
+        assert!(status.starts_with("not your turn"), "{status}");
+        let early = status_after(&[(A, 0), (B, 1), (A, 2), (B, 3), (B, 4)]);
+        assert!(early.starts_with("not your turn"), "{early}");
+    }
+
+    #[test]
+    fn a_taken_square_is_refused_without_costing_the_turn() {
+        let status = status_after(&[(A, 4), (B, 4)]);
+        assert!(status.starts_with("that square is taken"));
+        let state = run(&[(A, 4)]);
+        let out = apply("play", &format!(r#"{{"action":"p4","state":"{state}"}}"#), B).unwrap();
+        assert_eq!(scene_state(&out), state, "B did not claim a seat with an illegal move");
+    }
+
+    #[test]
+    fn a_third_person_watches_and_cannot_move() {
+        assert!(status_after(&[(A, 0), (B, 1), (C, 2)]).starts_with("both sides are taken"));
+    }
+
+    #[test]
+    fn nobody_moves_after_the_game_is_won() {
+        let won = [(A, 0), (B, 3), (A, 1), (B, 4), (A, 2)];
+        let state = run(&won);
+        let out = apply("play", &format!(r#"{{"action":"p8","state":"{state}"}}"#), B).unwrap();
+        assert!(out.contains("the game is over"));
+        assert_eq!(scene_state(&out), state);
+    }
+
+    #[test]
+    fn an_unidentified_caller_cannot_move() {
+        let out = apply("play", r#"{"action":"p0","state":".........|X||"}"#, "").unwrap();
+        assert!(out.contains("did not say who you are"));
+    }
+
+    #[test]
+    fn only_a_player_can_restart_a_game_in_progress() {
+        let state = run(&[(A, 0), (B, 1)]);
+        let input = format!(r#"{{"action":"new game","state":"{state}"}}"#);
+        assert!(apply("play", &input, C).unwrap().contains("only a player can restart"));
+        assert!(apply("play", &input, A).unwrap().contains(r#""state":".........|X||""#));
+    }
+
+    #[test]
+    fn a_finished_game_can_be_restarted_by_anyone() {
+        let state = run(&[(A, 0), (B, 3), (A, 1), (B, 4), (A, 2)]);
+        let input = format!(r#"{{"action":"new game","state":"{state}"}}"#);
+        assert!(apply("play", &input, C).unwrap().contains(r#""state":".........|X||""#));
+    }
+
+    #[test]
+    fn the_same_inputs_give_the_same_board() {
+        let moves = [(A, 4), (B, 0), (A, 8)];
+        assert_eq!(run(&moves), run(&moves));
     }
 }
