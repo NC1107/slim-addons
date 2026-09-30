@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "cron-explain",
+  "name": "Cron Explain",
+  "version": "0.1.0",
+  "summary": "Explain a cron schedule field by field, and list its next runs.",
+  "description": "Adds an Explain permission and an explain command. Type `/cron */15 9-17 * * 1-5` to see what each field means, or add a start time to list the next five runs, like `/cron 0 9 * * 1-5 @ 2026-01-02 09:00`. Times are UTC and the start is always given, so the answer never depends on a clock. Supports ranges, steps, lists, month and day names, and @daily style aliases.",
+  "author": "slim-m",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 16,
+      "wall_ms": 500,
+      "fuel": 20000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/cron-explain/0.1.0/module.wasm",
+    "sha256": "03ee0df9ca792fdf03d79c2307c04fbb7b235400b2a7e3dcd9d0d2d60feae9ea"
+  },
+  "permissions": [
+    {
+      "key": "explain",
+      "name": "Explain cron schedules",
+      "description": "Explain cron expressions in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "explain",
+      "permission": "explain",
+      "description": "Explain a five-field cron expression, optionally with @ start time."
+    },
+    {
+      "kind": "slash-command",
+      "name": "cron",
+      "permission": "explain",
+      "command": "explain",
+      "description": "Explain a cron schedule: /cron 0 9 * * 1-5"
+    }
+  ]
+}

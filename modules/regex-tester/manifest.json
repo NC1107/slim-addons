@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "id": "regex-tester",
+  "name": "Regex Tester",
+  "version": "0.1.0",
+  "summary": "Show every match of a regex in some text, with its groups.",
+  "description": "Adds a Test permission and a test command. Type `/regex \\d+ :: a1 b22`, or write a `regex` code block with the pattern on the first line and the text below it, then press Run. Lists each match with its position and capture groups. Matching is linear-time, so a hostile pattern cannot run away, and oversized patterns are refused.",
+  "author": "slim-m",
+  "homepage": "https://github.com/Slim-m-org/slim-addons",
+  "runtime": {
+    "backend": "wasm",
+    "limits": {
+      "memory_mb": 32,
+      "wall_ms": 1000,
+      "fuel": 100000000
+    }
+  },
+  "artifact": {
+    "kind": "wasm",
+    "path": "modules/regex-tester/0.1.0/module.wasm",
+    "sha256": "248cf0aa231b8a8acf02982a4d65904da28301faa3906772f14de855a48d326e"
+  },
+  "permissions": [
+    {
+      "key": "test",
+      "name": "Test regexes",
+      "description": "Run a regex against text in this space."
+    }
+  ],
+  "capabilities": [
+    "command.register"
+  ],
+  "extension_points": [
+    {
+      "kind": "command",
+      "name": "test",
+      "permission": "test",
+      "description": "Match the pattern on the first line against the text after it."
+    },
+    {
+      "kind": "slash-command",
+      "name": "regex",
+      "permission": "test",
+      "command": "test",
+      "description": "Test a regex: /regex pattern :: text"
+    },
+    {
+      "kind": "code-block-runner",
+      "name": "Regex",
+      "permission": "test",
+      "command": "test",
+      "language": "regex",
+      "description": "Test a regex code block."
+    }
+  ]
+}

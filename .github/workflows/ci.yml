@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  modules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          target: wasm32-unknown-unknown
+          cache: false
+          rustflags: ""
+      # A module's .cargo/config.toml (code-exec needs one) is only read from the directory cargo runs in.
+      - name: Test and build every module
+        run: |
+          set -euo pipefail
+          for dir in modules/*/; do
+            [ -f "$dir/Cargo.toml" ] || continue
+            locked=""
+            [ -f "$dir/Cargo.lock" ] && locked="--locked"
+            echo "::group::$dir"
+            (
+              cd "$dir"
+              cargo test $locked
+              cargo build $locked --release --target wasm32-unknown-unknown
+            )
+            echo "::endgroup::"
+          done
+      - name: Check the catalogue
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          args=()
+          if [ "$EVENT" = "pull_request" ]; then
+            args=(--base "origin/$BASE_REF")
+          fi
+          python3 scripts/check-catalogue.py "${args[@]}"
+      - name: Check every app's first scene
+        run: |
+          (cd tools/run-module && cargo build --locked --release)
+          python3 scripts/check-app-scenes.py target/release/run-module
