@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "plot",
   "name": "Plot",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "summary": "Draw a bar chart from numbers, inline.",
   "description": "Give it numbers - `3, 7, 2, 8` or labelled `mon: 3, tue: 7` (one per line or comma-separated) - and it renders a bar chart in the channel. Type `/plot 3, 7, 2`, or write a `chart` code block and press Run. The chart is drawn as a scene, so it looks native in light and dark.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/plot/0.1.1/module.wasm",
-    "sha256": "07f7a1f983730de7ba70892ef75a2589eaf8a2fdf05b8d006c5b713a0d8aba5d"
+    "path": "modules/plot/0.1.2/module.wasm",
+    "sha256": "c4399958d10a7a56566c684a0e472d3d9681ab19682db66169c3d730e771479b"
   },
   "permissions": [
     {

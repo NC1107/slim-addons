@@ -40,7 +40,7 @@
     {
       "id": "plot",
       "name": "Plot",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "summary": "Draw a bar chart from numbers, inline."
     },
     {
@@ -52,7 +52,7 @@
     {
       "id": "table",
       "name": "Table",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Align CSV or TSV into a neat monospace table."
     },
     {
@@ -70,13 +70,13 @@
     {
       "id": "spirograph",
       "name": "Spirograph",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Draw roulette curves with three gears, and change them by tapping."
     },
     {
       "id": "word-guess",
       "name": "Word Guess",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Guess a five-letter word in six tries, typing each guess into the scene."
     },
     {
@@ -94,7 +94,7 @@
     {
       "id": "regex-tester",
       "name": "Regex Tester",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Show every match of a regex in some text, with its groups."
     },
     {
@@ -112,7 +112,7 @@
     {
       "id": "poll",
       "name": "Poll",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "summary": "Run a live poll in the channel, one vote per person, and watch the bars fill in."
     }
   ]

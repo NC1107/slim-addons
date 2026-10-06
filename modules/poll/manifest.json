@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "poll",
   "name": "Poll",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "summary": "Run a live poll in the channel, one vote per person, and watch the bars fill in.",
   "description": "Launch a poll from the apps menu (or type /poll Question? | option a, option b) and vote together. Each person has one vote: tap a bar to vote, tap another to move it. 'close poll' stops further votes and shows the result; 'reset' starts over. The poll and an opaque per-module id for each voter are kept in the message itself; the module stores nothing and learns nothing else about you. Because that state passes through each member's client, this stops accidents and casual padding, not a member who forges it.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/poll/0.1.1/module.wasm",
-    "sha256": "b2f0ec11f825680cba4ac879f264ce01b7ab0e6973aebcc1456d1f0f55bc237e"
+    "path": "modules/poll/0.1.2/module.wasm",
+    "sha256": "3509e9a8e28e9354921386d4ae746d67dbcdb4efc2c86449904156ae83aac251"
   },
   "permissions": [
     {

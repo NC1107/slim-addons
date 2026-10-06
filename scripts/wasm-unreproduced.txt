@@ -2,8 +2,4 @@
 connect-four
 music-box
 palette
-regex-tester
-spirograph
-table
 tic-tac-toe
-word-guess
