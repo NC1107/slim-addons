@@ -9,13 +9,20 @@ pub fn is_reserved(name: &str) -> bool {
     name == "pi" || name == "e" || FUNCTIONS.contains(&name)
 }
 
+fn finite(value: f64) -> Result<f64, String> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err("the result is not a finite number".to_string())
+    }
+}
+
 pub fn evaluate(source: &str, vars: &BTreeMap<String, f64>) -> Result<f64, String> {
     let mut p = Parser { chars: source.chars().collect(), pos: 0, depth: 0, vars };
     let value = p.sum()?;
     p.skip_space();
     match p.chars.get(p.pos) {
-        None if value.is_finite() => Ok(value),
-        None => Err("the result is not a finite number".to_string()),
+        None => Ok(value),
         Some(c) => Err(format!("unexpected {c:?}")),
     }
 }
@@ -67,9 +74,9 @@ impl Parser<'_> {
         let mut acc = self.product()?;
         loop {
             if self.eat('+') {
-                acc += self.product()?;
+                acc = finite(acc + self.product()?)?;
             } else if self.eat('-') {
-                acc -= self.product()?;
+                acc = finite(acc - self.product()?)?;
             } else {
                 return Ok(acc);
             }
@@ -80,11 +87,11 @@ impl Parser<'_> {
         let mut acc = self.unary()?;
         loop {
             if self.eat('*') {
-                acc *= self.unary()?;
+                acc = finite(acc * self.unary()?)?;
             } else if self.eat('/') {
-                acc /= self.divisor()?;
+                acc = finite(acc / self.divisor()?)?;
             } else if self.eat('%') {
-                acc %= self.divisor()?;
+                acc = finite(acc % self.divisor()?)?;
             } else {
                 return Ok(acc);
             }
@@ -112,7 +119,7 @@ impl Parser<'_> {
         let base = self.atom()?;
         if self.eat('^') {
             let exponent = self.unary()?;
-            return Ok(pow(base, exponent));
+            return finite(pow(base, exponent));
         }
         Ok(base)
     }
@@ -155,7 +162,7 @@ impl Parser<'_> {
             self.pos += 1;
         }
         let text: String = self.chars[start..self.pos].iter().collect();
-        text.parse().map_err(|_| format!("{text} is not a number"))
+        text.parse().map_err(|_| format!("{text} is not a number")).and_then(finite)
     }
 
     fn name(&mut self) -> Result<f64, String> {
@@ -166,7 +173,7 @@ impl Parser<'_> {
         let name: String = self.chars[start..self.pos].iter().collect();
         if self.eat('(') {
             let args = self.nested(|p| p.arguments())?;
-            return call(&name, &args);
+            return call(&name, &args).and_then(finite);
         }
         match name.as_str() {
             "pi" => Ok(std::f64::consts::PI),

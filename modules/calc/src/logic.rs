@@ -120,4 +120,12 @@ mod tests {
         assert_eq!(run("10 ^ 20"), "10 ^ 20 = 1e20");
         assert_eq!(run("1 / 3 / 1000000000000"), "1 / 3 / 1000000000000 = 3.33333333e-13");
     }
+
+    #[test]
+    fn an_overflow_inside_an_expression_is_an_error_not_a_quiet_number() {
+        for source in ["1 / 10 ^ 400", "min(0 * 10 ^ 400, 5)", "max(10 ^ 400 - 10 ^ 400, 5)"] {
+            let err = apply("eval", source).unwrap_err();
+            assert!(err.contains("not a finite number"), "{source}: {err}");
+        }
+    }
 }
