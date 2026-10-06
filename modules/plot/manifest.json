@@ -18,7 +18,7 @@
   "artifact": {
     "kind": "wasm",
     "path": "modules/plot/0.1.1/module.wasm",
-    "sha256": "c4baa6beb4d2f45c07f74238da6513954e2b146a5023b06dd9a18e25b4a4784e"
+    "sha256": "07f7a1f983730de7ba70892ef75a2589eaf8a2fdf05b8d006c5b713a0d8aba5d"
   },
   "permissions": [
     {

@@ -18,7 +18,7 @@
   "artifact": {
     "kind": "wasm",
     "path": "modules/poll/0.1.1/module.wasm",
-    "sha256": "afd278aeee0c913acd8b9a3fcbc6808eeedc57ce965351f66638bac0d03e540b"
+    "sha256": "b2f0ec11f825680cba4ac879f264ce01b7ab0e6973aebcc1456d1f0f55bc237e"
   },
   "permissions": [
     {

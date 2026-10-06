@@ -6,9 +6,11 @@
 #
 # Needs the toolchain pinned in rust-toolchain.toml. Every absolute path rustc
 # would bake into the wasm (cargo home, the toolchain, the module checkout) is
-# remapped to a fixed one. A module's own `.cargo/config.toml` rustflags are
-# merged in, because RUSTFLAGS in the environment replaces them rather than
-# adding to them.
+# remapped to a fixed one. The rust-src component, when installed, is mapped to
+# the /rustc/<commit> paths a toolchain without it already uses; otherwise the
+# bytes would depend on whether that component is present. A module's own
+# `.cargo/config.toml` rustflags are merged in, because RUSTFLAGS in the
+# environment replaces them rather than adding to them.
 set -euo pipefail
 
 dir="${1:?usage: build-wasm.sh <module-dir> <out.wasm>}"
@@ -18,10 +20,12 @@ out=$(realpath -m "$out")
 
 cargo_home="${CARGO_HOME:-$HOME/.cargo}"
 sysroot=$(rustc --print sysroot)
+commit=$(rustc -vV | sed -n 's/^commit-hash: //p')
 
 flags=(
   "--remap-path-prefix=$cargo_home=/cargo"
   "--remap-path-prefix=$sysroot=/rustc-sysroot"
+  "--remap-path-prefix=$sysroot/lib/rustlib/src/rust=/rustc/$commit"
   "--remap-path-prefix=$dir=/module"
 )
 if [[ -f "$dir/.cargo/config.toml" ]]; then
