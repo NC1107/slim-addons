@@ -40,6 +40,10 @@ jobs:
           done
       - name: Check every module has unit tests
         run: python3 scripts/check-module-tests.py
+      - name: Test the check scripts and the module runner
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          (cd tools/run-module && cargo test --locked)
       # Rebuilds each module's wasm with scripts/build-wasm.sh and compares it to the pinned one.
       - name: Check the pinned wasm was built from this source
         env:
@@ -61,7 +65,7 @@ jobs:
             args=(--base "origin/$BASE_REF")
           fi
           python3 scripts/check-catalogue.py "${args[@]}"
-      - name: Check every app's first scene
+      - name: Check every app's scenes
         run: |
           (cd tools/run-module && cargo build --locked --release)
           python3 scripts/check-app-scenes.py target/release/run-module

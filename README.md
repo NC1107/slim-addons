@@ -45,9 +45,16 @@ $R modules/spirograph/0.1.0/module.wasm spiro ''
 $R modules/spirograph/0.1.0/module.wasm spiro '{"action":"random","state":"34,13,21"}'
 ```
 
-It does not enforce slim's fuel, memory or wall-clock limits, so a module that
-runs here can still be refused there for being too expensive. The manifest's
-`runtime.limits` is the authority on that.
+A module that needs to know who is acting gets a caller with `--caller <id>`:
+
+```bash
+$R --caller alice modules/tic-tac-toe/0.2.0/module.wasm play ''
+```
+
+`--fuel <n>` meters the run and fails it with `out of fuel` when the budget is spent, the way slim refuses a module over its limit.
+The scripts below pass the manifest's `runtime.limits.fuel` and a timeout built from `wall_ms`.
+Without `--fuel` the run is unmetered, and memory is never limited here, so a module that runs here can still be refused there for being too expensive.
+The manifest's `runtime.limits` is the authority on that.
 
 ### Checking a scene against the renderer
 
@@ -69,8 +76,8 @@ shipped before the check existed.
 ## Checks
 
 CI (`.github/workflows/ci.yml`) runs on every pull request and push to main.
-It runs `cargo test` for each module, `scripts/check-wasm-builds.py`, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py` over every app's first frame, then `scripts/check-command-modules.py`, which runs each command-only module through the wasm abi with a fixed input.
-Right after the `cargo test` loop, `scripts/check-module-tests.py` fails a module whose `src` has no `#[test]`.
+It runs `cargo test` for each module, `scripts/check-wasm-builds.py`, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py`, which launches every app and checks the frame for each control, tap target and input its scene offers, as two different callers, then `scripts/check-command-modules.py`, which runs each command-only module through the wasm abi with a fixed input.
+Right after the `cargo test` loop, `python3 -m unittest discover -s scripts -p 'test_*.py'` runs the unit tests for these scripts and `cargo test` in `tools/run-module` runs the runner's own; `scripts/check-module-tests.py` fails a module whose `src` has no `#[test]`.
 
 Each module keeps its logic in plain Rust with unit tests, so `cd modules/<id> && cargo test` runs them with no wasm involved.
 
