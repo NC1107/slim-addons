@@ -10,7 +10,6 @@ markdown-tools
 minesweeper
 music-box
 palette
-plot
 regex-tester
 spirograph
 table

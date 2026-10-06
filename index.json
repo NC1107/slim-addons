@@ -40,7 +40,7 @@
     {
       "id": "plot",
       "name": "Plot",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Draw a bar chart from numbers, inline."
     },
     {
