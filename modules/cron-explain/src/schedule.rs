@@ -3,6 +3,7 @@
 use crate::field::Field;
 
 const MAX_DAYS_SEARCHED: i64 = 366 * 8;
+const YEARS: std::ops::RangeInclusive<i64> = 1..=9999;
 
 pub struct Stamp {
     pub year: i64,
@@ -32,7 +33,7 @@ pub fn parse_stamp(text: &str) -> Result<Stamp, String> {
     let d: Vec<i64> = date.split('-').map(|p| p.parse().map_err(|_| bad())).collect::<Result<_, _>>()?;
     let t: Vec<u32> = time.split(':').map(|p| p.parse().map_err(|_| bad())).collect::<Result<_, _>>()?;
     match (d.as_slice(), t.as_slice()) {
-        ([y, mo, da], [h, mi]) if (1..=12).contains(mo) && *da >= 1 && *da <= days_in_month(*y, *mo as u32) as i64 && *h < 24 && *mi < 60 => {
+        ([y, mo, da], [h, mi]) if YEARS.contains(y) && (1..=12).contains(mo) && *da >= 1 && *da <= days_in_month(*y, *mo as u32) as i64 && *h < 24 && *mi < 60 => {
             Ok(Stamp { year: *y, month: *mo as u32, day: *da as u32, hour: *h, minute: *mi })
         }
         _ => Err(bad()),
