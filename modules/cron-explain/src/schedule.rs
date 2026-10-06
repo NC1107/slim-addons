@@ -73,7 +73,7 @@ fn days_in_month(y: i64, m: u32) -> u32 {
 }
 
 impl Cron {
-    /// Standard cron: when both day fields are restricted, either one matching is enough.
+    /// Standard cron: either day field matching is enough only when neither is written with a leading `*`.
     fn day_matches(&self, m: u32, d: u32, days: i64) -> bool {
         if !self.month.has(m) {
             return false;
@@ -81,11 +81,10 @@ impl Cron {
         let weekday = (days + 4).rem_euclid(7) as u32;
         let by_month_day = self.dom.has(d);
         let by_weekday = self.dow.has(weekday);
-        match (self.dom.wildcard, self.dow.wildcard) {
-            (false, false) => by_month_day || by_weekday,
-            (false, true) => by_month_day,
-            (true, false) => by_weekday,
-            (true, true) => true,
+        if self.dom.starred || self.dow.starred {
+            by_month_day && by_weekday
+        } else {
+            by_month_day || by_weekday
         }
     }
 

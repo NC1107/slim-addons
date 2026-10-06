@@ -138,4 +138,16 @@ mod tests {
         assert!(apply("explain", "* * * * * @ tomorrow").is_err());
         assert!(apply("explain", "* * * * * @ 2026-02-30 00:00").is_err());
     }
+
+    #[test]
+    fn a_starred_day_of_month_still_has_to_match_the_weekday() {
+        let out = run("0 0 */2 * 1 @ 2026-02-01 00:00");
+        let runs: Vec<&str> = out.lines().skip_while(|l| !l.starts_with("next runs")).skip(1).map(str::trim).collect();
+        assert_eq!(runs, ["2026-02-09 00:00", "2026-02-23 00:00", "2026-03-09 00:00", "2026-03-23 00:00", "2026-04-13 00:00"]);
+    }
+
+    #[test]
+    fn a_starred_day_of_month_is_still_described_by_its_values() {
+        assert!(run("0 0 */2 * 1").contains("day of month 1, 3, 5, 7"));
+    }
 }

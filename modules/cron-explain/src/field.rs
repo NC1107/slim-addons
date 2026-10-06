@@ -25,6 +25,8 @@ pub const FIELDS: [Spec; 5] = [
 pub struct Field {
     pub bits: u64,
     pub wildcard: bool,
+    /// Cron counts any field written with a leading `*` as unrestricted when it picks between the day fields.
+    pub starred: bool,
 }
 
 impl Field {
@@ -45,7 +47,7 @@ pub fn parse(text: &str, spec: &Spec) -> Result<Field, String> {
     if spec.max == 7 && bits >> 7 & 1 == 1 {
         bits = bits & !(1 << 7) | 1;
     }
-    Ok(Field { bits, wildcard: text == "*" })
+    Ok(Field { bits, wildcard: text == "*", starred: text.starts_with('*') })
 }
 
 fn parse_part(part: &str, spec: &Spec) -> Result<u64, String> {
