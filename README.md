@@ -69,9 +69,18 @@ shipped before the check existed.
 ## Checks
 
 CI (`.github/workflows/ci.yml`) runs on every pull request and push to main.
-It runs `cargo test` and a wasm release build for each module, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py` over every app's first frame.
+It runs `cargo test` for each module, `scripts/check-wasm-builds.py`, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py` over every app's first frame.
 
 Each module keeps its logic in plain Rust with unit tests, so `cd modules/<id> && cargo test` runs them with no wasm involved.
 
 `python3 scripts/check-catalogue.py` confirms every module has an `index.json` row that matches its manifest, that each pinned wasm still hashes to its `sha256`, and that every extension point names a permission and command the manifest declares.
 With `--base origin/main` it also fails if a wasm that main already published was changed, or a manifest was edited without bumping its version.
+
+`python3 scripts/check-wasm-builds.py` rebuilds each module's wasm with [`scripts/build-wasm.sh`](scripts/build-wasm.sh) and fails if it differs from the one the manifest pins, so a source change cannot ship without a rebuilt wasm and a new version.
+The build uses the toolchain pinned in `rust-toolchain.toml` and remaps every absolute path (cargo home, toolchain, checkout) to a fixed one, so the same source gives the same bytes on any machine.
+`scripts/package-module.sh` uses the same recipe.
+Rustup reads the pin automatically; a machine without that exact toolchain installed needs `rustup toolchain install 1.94.1` first.
+
+Wasm files published before that recipe cannot match a rebuild.
+They are listed in `scripts/wasm-unreproduced.txt`, which only shrinks: rebuild a module with `scripts/package-module.sh`, bump its version, and delete its line.
+For a listed module, CI on a pull request instead fails a change to `src/`, `Cargo.toml`, `Cargo.lock` or `.cargo/` that keeps the version.
