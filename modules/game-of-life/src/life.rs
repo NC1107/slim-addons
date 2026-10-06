@@ -53,7 +53,7 @@ impl Board {
         if let Some(pattern) = preset(trimmed) {
             return Board::from_pattern(&pattern);
         }
-        Board::from_pattern(&parse_ascii(trimmed))
+        Board::from_pattern(&parse_ascii(&without_blank_edge_lines(input)))
     }
 
     /// A soup filling roughly a third of the board, seeded from `salt` so the
@@ -173,6 +173,14 @@ impl Board {
     }
 }
 
+/// Drops empty lines at either end but keeps the leading spaces of the first drawn row.
+fn without_blank_edge_lines(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().map(str::trim_end).collect();
+    let first = lines.iter().position(|l| !l.is_empty()).unwrap_or(0);
+    let last = lines.iter().rposition(|l| !l.is_empty()).map_or(0, |i| i + 1);
+    lines[first..last].join("\n")
+}
+
 fn parse_ascii(text: &str) -> Pattern {
     let rows: Vec<&str> = text.lines().collect();
     let mut live = Vec::new();
@@ -255,5 +263,27 @@ fn gosper_gun() -> Pattern {
         w: 36,
         h: 9,
         live: coords.to_vec(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Board;
+
+    #[test]
+    fn a_space_drawn_glider_matches_the_dot_drawn_one() {
+        let spaces = Board::seed(" #\n  #\n###");
+        assert_eq!(spaces.cell_string(), Board::seed("glider").cell_string());
+    }
+
+    #[test]
+    fn blank_lines_around_a_drawing_do_not_move_it() {
+        let padded = Board::seed("\n\n #\n  #\n###\n\n");
+        assert_eq!(padded.cell_string(), Board::seed("glider").cell_string());
+    }
+
+    #[test]
+    fn empty_input_is_still_the_gun() {
+        assert_eq!(Board::seed("  \n ").cell_string(), Board::seed("gun").cell_string());
     }
 }
