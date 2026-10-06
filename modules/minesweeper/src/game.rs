@@ -3,11 +3,13 @@
 //! arrives as an action, and the module returns the next frame. No host
 //! storage, no memory between calls.
 //!
-//! **The mines are not in the state.** Only a seed is, and the field is
-//! rebuilt from it on every frame. Two reasons. A state that carried the
-//! mine positions would hand the answer to anyone who read it, which in a
-//! channel where the state is shared is the whole game. And the state stays
-//! short: a seed and the revealed/flagged masks, rather than a third grid.
+//! **The mines are not in the state, only a seed is.** The field is rebuilt
+//! from it on every frame, which keeps the state short: a seed and the
+//! revealed/flagged masks, rather than a third grid. It is not secrecy. The
+//! seed is in the state every viewer receives and `mines_for` has no secret
+//! input, so anyone who reads the state can compute the mines. That is
+//! acceptable for a cooperative game; hidden information waits for per-module
+//! storage (decision 0038).
 //!
 //! The first tap is always safe. The seed is chosen at launch, before any
 //! tap, so it cannot be steered by where somebody clicked - instead the
@@ -446,14 +448,12 @@ mod tests {
     }
 
     #[test]
-    fn the_state_never_carries_the_mines() {
+    fn the_state_stays_a_short_seed_and_never_carries_the_mine_grid() {
         let (mut board, mines) = board_with_known_field();
         board.tap(first_safe(&mines));
         let state = board.state();
 
-        // The field written out the way the masks are. If this ever appears in
-        // the state, anyone who can read the state can read the mines - which
-        // in a shared channel is the entire game.
+        // The field written out the way the masks are; the state is meant to stay a short seed.
         let field = mask_to(&mines);
         assert!(
             !state.contains(&field),
