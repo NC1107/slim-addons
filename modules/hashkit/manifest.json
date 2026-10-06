@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "hashkit",
   "name": "Hash Kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "summary": "SHA-256, base64 and hex encode a string.",
   "description": "Adds a Use permission and three commands: sha256, base64 and hex. A member who holds the permission can transform a string with any of the three.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/hashkit/0.1.1/module.wasm",
-    "sha256": "c952cc25ac38b7cfc773d3a54bea3e75d78049d2dda71ca4edda5d671d684fb4"
+    "path": "modules/hashkit/0.1.2/module.wasm",
+    "sha256": "2d6e50971799e8a7d12cfa4bc066d208cabb6210c1a50d868d93a19474aac690"
   },
   "permissions": [
     {

@@ -4,37 +4,37 @@
     {
       "id": "code-exec",
       "name": "Code Blocks",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "summary": "Run a code block in your space and see its output inline, like a notebook cell."
     },
     {
       "id": "json-tools",
       "name": "JSON Tools",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "summary": "Pretty-print JSON with 2-space indentation."
     },
     {
       "id": "markdown-tools",
       "name": "Markdown Tools",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "summary": "Word count, character count and reading time for markdown text."
     },
     {
       "id": "dice",
       "name": "Dice",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "summary": "Roll dice notation like 2d20+3."
     },
     {
       "id": "hashkit",
       "name": "Hash Kit",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "summary": "SHA-256, base64 and hex encode a string."
     },
     {
       "id": "game-of-life",
       "name": "Game of Life",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "summary": "Conway's Game of Life: launch it from the apps menu, or play a life code block inline."
     },
     {
@@ -64,7 +64,7 @@
     {
       "id": "minesweeper",
       "name": "Minesweeper",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "summary": "Clear a nine-by-nine board without hitting a mine."
     },
     {
@@ -88,7 +88,7 @@
     {
       "id": "calc",
       "name": "Calc",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Evaluate arithmetic with variables, a line at a time."
     },
     {
@@ -100,7 +100,7 @@
     {
       "id": "cron-explain",
       "name": "Cron Explain",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Explain a cron schedule field by field, and list its next runs."
     },
     {

@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "code-exec",
   "name": "Code Blocks",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "summary": "Run a code block in your space and see its output inline, like a notebook cell.",
   "description": "Adds an Execute permission and a run command. A member who holds the permission can run a code block; the module executes it in slim-m's sandbox and posts the output. JavaScript first. Runs are deterministic: Math.random starts from the same seed on every run and Date.now() is frozen at 0, so do not rely on either to vary between runs.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/code-exec/0.1.2/module.wasm",
-    "sha256": "0941e05e4bdfded623d7bb16b1e25eaf8b3bcbc29a6b40a13814abe143bc88cd"
+    "path": "modules/code-exec/0.1.3/module.wasm",
+    "sha256": "4b3e23e5b9095707255209e5b9ddde0d2fc1e912f8aa638e53d19b8763ae6fe9"
   },
   "permissions": [
     {
