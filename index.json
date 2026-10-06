@@ -112,7 +112,7 @@
     {
       "id": "poll",
       "name": "Poll",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Run a live poll in the channel, one vote per person, and watch the bars fill in."
     }
   ]

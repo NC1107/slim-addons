@@ -37,6 +37,9 @@ fn handle(input: &str, caller: &str) -> String {
     }
 }
 
+/// The client sends a control's label back verbatim as the action.
+const CLOSE_CONTROL: &str = "close poll";
+
 fn dispatch(action: Action, caller: &str) -> String {
     let existing = Poll::parse(&action.state);
 
@@ -64,7 +67,7 @@ fn dispatch(action: Action, caller: &str) -> String {
         };
         return render_poll(&poll, note);
     }
-    if action.action == "close" {
+    if action.action == "close" || action.action == CLOSE_CONTROL {
         return match existing {
             Some(mut poll) => {
                 poll.open = false;
@@ -194,7 +197,7 @@ fn render_poll(poll: &Poll, note: Option<&str>) -> String {
     };
 
     let controls: Vec<&str> = if poll.open {
-        vec!["close poll", "reset"]
+        vec![CLOSE_CONTROL, "reset"]
     } else {
         vec!["reset"]
     };
@@ -335,5 +338,29 @@ mod tests {
         let poll = parse_setup(&format!("{evil} | a, b")).unwrap();
         let reparsed = Poll::parse(&poll.state()).expect("state parses after a hostile question");
         assert_eq!(reparsed.options.len(), 2);
+    }
+
+    #[test]
+    fn pressing_the_close_poll_control_closes_the_poll() {
+        let first = act("setup:q? | a, b", "", A);
+        let label = first["controls"][0].as_str().unwrap();
+        let out = act(label, first["state"].as_str().unwrap(), A);
+        assert!(
+            out["status"].as_str().unwrap().starts_with("final:"),
+            "poll still open after pressing {label:?}: {}",
+            out["status"]
+        );
+    }
+
+    #[test]
+    fn every_control_a_scene_offers_changes_the_scene() {
+        let open = act("setup:q? | a, b", "", A);
+        let closed = act("close", open["state"].as_str().unwrap(), A);
+        for scene in [open, closed] {
+            for control in scene["controls"].as_array().unwrap() {
+                let out = act(control.as_str().unwrap(), scene["state"].as_str().unwrap(), A);
+                assert_ne!(out, scene, "control {control} was treated as an unknown action");
+            }
+        }
     }
 }
