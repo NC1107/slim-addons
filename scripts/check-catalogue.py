@@ -22,7 +22,11 @@ def fail(module, message):
 
 
 index = json.loads((root / "index.json").read_text())
-listed = {m["id"]: m for m in index["modules"]}
+listed = {}
+for row in index["modules"]:
+    if row["id"] in listed:
+        fail(row["id"], "is listed in index.json more than once")
+    listed[row["id"]] = row
 on_disk = {p.parent.name for p in (root / "modules").glob("*/manifest.json") if p.parent.name != "_template"}
 for missing in sorted(on_disk - listed.keys()):
     fail(missing, "has a manifest but no index.json row")
@@ -38,6 +42,9 @@ for mid in sorted(on_disk & listed.keys()):
     if m["id"] != mid:
         fail(mid, "manifest id does not match its directory")
     wasm = root / m["artifact"]["path"]
+    expected_path = f"modules/{mid}/{m['version']}/module.wasm"
+    if m["artifact"]["path"] != expected_path:
+        fail(mid, f"artifact path {m['artifact']['path']} is not {expected_path}, so version {m['version']} would ship another version's wasm")
     if not wasm.is_file():
         fail(mid, f"artifact {m['artifact']['path']} is missing")
     elif hashlib.sha256(wasm.read_bytes()).hexdigest() != m["artifact"]["sha256"]:

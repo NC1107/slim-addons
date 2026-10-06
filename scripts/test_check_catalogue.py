@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""Unit tests for check-catalogue.py, run against a throwaway copy of the repo layout.
+
+Run from the repo root: python3 -m unittest discover -s scripts -p 'test_*.py'
+SCRIPTS_DIR points the tests at another copy of the scripts, for mutation checks.
+"""
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+scripts = pathlib.Path(os.environ.get("SCRIPTS_DIR", pathlib.Path(__file__).resolve().parent))
+repo = pathlib.Path(__file__).resolve().parent.parent
+
+
+class CatalogueTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        (self.tmp / "scripts").mkdir()
+        shutil.copy(scripts / "check-catalogue.py", self.tmp / "scripts")
+        shutil.copy(repo / "index.json", self.tmp)
+        for source in sorted((repo / "modules").glob("*/manifest.json")):
+            target = self.tmp / "modules" / source.parent.name
+            target.mkdir(parents=True)
+            shutil.copy(source, target)
+            for version in source.parent.iterdir():
+                if version.is_dir() and version.name[0].isdigit():
+                    (target / version.name).symlink_to(version)
+
+    def run_check(self):
+        return subprocess.run([sys.executable, str(self.tmp / "scripts" / "check-catalogue.py")], capture_output=True, text=True)
+
+    def edit_manifest(self, module, change):
+        path = self.tmp / "modules" / module / "manifest.json"
+        manifest = json.loads(path.read_text())
+        change(manifest)
+        path.write_text(json.dumps(manifest))
+
+    def test_the_repo_as_it_stands_passes(self):
+        done = self.run_check()
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_a_duplicated_index_row_is_refused(self):
+        index = json.loads((self.tmp / "index.json").read_text())
+        index["modules"].append(dict(index["modules"][0], version="9.9.9"))
+        (self.tmp / "index.json").write_text(json.dumps(index))
+        done = self.run_check()
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("more than once", done.stderr)
+
+    def test_a_version_bump_that_keeps_the_old_artifact_path_is_refused(self):
+        def bump(manifest):
+            manifest["version"] = "9.9.9"
+
+        self.edit_manifest("table", bump)
+        index = json.loads((self.tmp / "index.json").read_text())
+        for row in index["modules"]:
+            if row["id"] == "table":
+                row["version"] = "9.9.9"
+        (self.tmp / "index.json").write_text(json.dumps(index))
+        done = self.run_check()
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("another version's wasm", done.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
