@@ -18,6 +18,14 @@ use serde::{Deserialize, Serialize};
 struct Request {
     command: String,
     input: String,
+    #[serde(default)]
+    caller: Caller,
+}
+
+#[derive(Deserialize, Default)]
+struct Caller {
+    #[serde(default)]
+    id: String,
 }
 
 #[derive(Serialize)]
@@ -67,7 +75,7 @@ fn handle(request: &[u8]) -> Vec<u8> {
         Err(err) => return serialize_err(format!("invalid request: {err}")),
     };
 
-    match game::apply(&parsed.command, &parsed.input) {
+    match game::apply(&parsed.command, &parsed.input, &parsed.caller.id) {
         Ok(output) => serialize_ok(output),
         Err(message) => serialize_err(message),
     }
@@ -89,4 +97,49 @@ fn raw_alloc(len: usize) -> *mut u8 {
     }
     let layout = Layout::from_size_align(len, 1).expect("valid layout");
     unsafe { std_alloc(layout) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::handle;
+
+    /// What the host sends: the command, its input and the id of whoever tapped.
+    fn call(input: &str, caller: &str) -> String {
+        let request = serde_json::json!({"command": "play", "input": input, "caller": {"id": caller}});
+        String::from_utf8(handle(request.to_string().as_bytes())).unwrap()
+    }
+
+    fn state_of(response: &str) -> String {
+        let outer: serde_json::Value = serde_json::from_str(response).unwrap();
+        let scene: serde_json::Value = serde_json::from_str(outer["output"].as_str().unwrap()).unwrap();
+        scene["state"].as_str().unwrap().to_owned()
+    }
+
+    #[test]
+    fn two_callers_launching_get_different_boards() {
+        let (a, b) = (state_of(&call("", "aaaa")), state_of(&call("", "bbbb")));
+        assert_ne!(a, b, "every launch started from the same seed");
+    }
+
+    #[test]
+    fn one_caller_launching_twice_gets_the_same_board() {
+        assert_eq!(state_of(&call("", "aaaa")), state_of(&call("", "aaaa")));
+    }
+
+    #[test]
+    fn new_game_follows_the_caller_too() {
+        let launch = state_of(&call("", "aaaa"));
+        let again = |caller: &str| {
+            let action = serde_json::json!({"action": "new game", "state": launch}).to_string();
+            state_of(&call(&action, caller))
+        };
+        assert_ne!(again("aaaa"), again("bbbb"));
+        assert_ne!(again("aaaa"), launch);
+    }
+
+    #[test]
+    fn a_request_without_a_caller_still_launches() {
+        let response = String::from_utf8(handle(br#"{"command":"play","input":""}"#)).unwrap();
+        assert!(response.contains(r#""ok":true"#), "{response}");
+    }
 }
