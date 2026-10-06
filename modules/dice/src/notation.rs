@@ -38,9 +38,7 @@ pub fn parse(text: &str) -> Result<Notation, String> {
         .map_err(|_| format!("invalid side count {sides_part:?}: {usage}"))?;
 
     let modifier = match modifier {
-        Some(text) => text
-            .parse()
-            .map_err(|_| format!("invalid modifier {text:?}: {usage}"))?,
+        Some(text) => signed(text).parse().map_err(|_| format!("invalid modifier {text:?}: {usage}"))?,
         None => 0,
     };
 
@@ -58,11 +56,37 @@ pub fn parse(text: &str) -> Result<Notation, String> {
     })
 }
 
+/// Drops the spaces between a modifier's sign and its digits, so `+ 3` reads as `+3`.
+fn signed(text: &str) -> String {
+    let (sign, digits) = text.split_at(1);
+    format!("{sign}{}", digits.trim_start())
+}
+
 /// Splits `rest` at the first `+`/`-` that follows the side-count digits,
 /// returning the side count text and, if present, the signed modifier text.
 fn split_modifier(rest: &str) -> (&str, Option<&str>) {
     match rest.find(['+', '-']) {
-        Some(idx) => (&rest[..idx], Some(&rest[idx..])),
-        None => (rest, None),
+        Some(idx) => (rest[..idx].trim_end(), Some(rest[idx..].trim_end())),
+        None => (rest.trim_end(), None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    #[test]
+    fn spaces_around_the_modifier_are_accepted() {
+        for text in ["2d20 + 3", "2d20 +3", "2d20+ 3", "2d20 - 3"] {
+            let n = parse(text).unwrap_or_else(|e| panic!("{text:?}: {e}"));
+            assert_eq!((n.count, n.sides, n.modifier.abs()), (2, 20, 3), "{text:?}");
+        }
+        assert_eq!(parse("2d20 - 3").unwrap().modifier, -3);
+    }
+
+    #[test]
+    fn spaces_inside_the_digits_are_still_an_error() {
+        assert!(parse("2d2 0").is_err());
+        assert!(parse("2d20+ 1 2").is_err());
     }
 }
