@@ -24,7 +24,7 @@ jobs:
           cache: false
           rustflags: ""
       # A module's .cargo/config.toml (code-exec needs one) is only read from the directory cargo runs in.
-      - name: Test and build every module
+      - name: Test every module
         run: |
           set -euo pipefail
           for dir in modules/*/; do
@@ -35,10 +35,20 @@ jobs:
             (
               cd "$dir"
               cargo test $locked
-              cargo build $locked --release --target wasm32-unknown-unknown
             )
             echo "::endgroup::"
           done
+      # Rebuilds each module's wasm with scripts/build-wasm.sh and compares it to the pinned one.
+      - name: Check the pinned wasm was built from this source
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          args=()
+          if [ "$EVENT" = "pull_request" ]; then
+            args=(--base "origin/$BASE_REF")
+          fi
+          python3 scripts/check-wasm-builds.py "${args[@]}"
       - name: Check the catalogue
         env:
           EVENT: ${{ github.event_name }}

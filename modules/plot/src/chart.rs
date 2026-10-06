@@ -75,26 +75,31 @@ fn render(data: &[(String, f64)]) -> String {
     let height = 64.0;
     let axis_y = height - 12.0;
     let top = 10.0;
-    let span = axis_y - top;
-    // Scale to the largest bar; a chart of all-equal values still fills the height. A max of 0 (all zero) avoids a divide-by-zero and draws flat bars.
-    let max = data.iter().map(|(_, v)| v.abs()).fold(0.0_f64, f64::max);
+    let hi = data.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max);
+    let lo = data.iter().map(|(_, v)| *v).fold(0.0_f64, f64::min);
+    // Room under the lowest bar for its value label, so it clears the category labels.
+    let plot_bottom = if lo < 0.0 { axis_y - 5.0 } else { axis_y };
+    // The zero line sits where value 0 falls; an all-zero chart (hi == lo) draws flat bars.
+    let scale = if hi > lo { (plot_bottom - top) / (hi - lo) } else { 0.0 };
+    let zero_y = if hi > lo { top + hi * scale } else { axis_y };
     let slot = (width - 8.0) / n;
     let bar_w = slot * 0.66;
 
     let mut ops: Vec<Value> = vec![json!({
-        "op": "line", "x1": 4.0, "y1": axis_y, "x2": width - 4.0, "y2": axis_y,
+        "op": "line", "x1": 4.0, "y1": zero_y, "x2": width - 4.0, "y2": zero_y,
         "stroke": "border", "sw": 0.5
     })];
     for (i, (label, value)) in data.iter().enumerate() {
         let x = 4.0 + i as f64 * slot + (slot - bar_w) / 2.0;
-        let h = if max > 0.0 { value.abs() / max * span } else { 0.0 };
-        let y = axis_y - h;
+        let h = value.abs() * scale;
+        let y = if *value < 0.0 { zero_y } else { zero_y - h };
+        let label_y = if *value < 0.0 { y + h + 4.5 } else { y - 1.5 };
         ops.push(json!({
             "op": "rect", "x": x, "y": y, "w": bar_w, "h": h,
             "fill": "accent", "r": 1.0
         }));
         ops.push(json!({
-            "op": "text", "x": x + bar_w / 2.0, "y": y - 1.5, "s": trim_num(*value),
+            "op": "text", "x": x + bar_w / 2.0, "y": label_y, "s": trim_num(*value),
             "fill": "text", "align": "center", "size": 4.0
         }));
         ops.push(json!({
@@ -169,5 +174,65 @@ mod tests {
         // serde_json escapes it; a hand-built string would not.
         let out = apply("bars", "a\"b: 4").unwrap();
         let _: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+    }
+
+    fn scene_ops(input: &str) -> Vec<Value> {
+        let out: Value = serde_json::from_str(&apply("bars", input).unwrap()).unwrap();
+        out["ops"].as_array().unwrap().clone()
+    }
+
+    fn rects(ops: &[Value]) -> Vec<&Value> {
+        ops.iter().filter(|o| o["op"] == "rect").collect()
+    }
+
+    #[test]
+    fn a_negative_bar_hangs_below_the_zero_line_not_above_it() {
+        let ops = scene_ops("a: 5, b: -5");
+        let bars = rects(&ops);
+        let zero = ops[0]["y1"].as_f64().unwrap();
+        let (up, down) = (bars[0], bars[1]);
+        assert_eq!(up["y"].as_f64().unwrap() + up["h"].as_f64().unwrap(), zero);
+        assert_eq!(down["y"].as_f64().unwrap(), zero, "negative bar must start at the zero line");
+        assert_eq!(up["h"], down["h"], "equal magnitudes draw equally tall");
+    }
+
+    #[test]
+    fn the_zero_line_moves_up_to_make_room_for_negatives() {
+        let flat = scene_ops("a: 5, b: 5");
+        let mixed = scene_ops("a: 5, b: -5");
+        assert!(mixed[0]["y1"].as_f64().unwrap() < flat[0]["y1"].as_f64().unwrap());
+    }
+
+    #[test]
+    fn every_bar_and_label_stays_inside_the_scene() {
+        for input in ["a: 5, b: -5", "a: -3, b: -9", "a: 1, b: -100"] {
+            for op in scene_ops(input) {
+                for key in ["y", "y1", "y2"] {
+                    if let Some(y) = op[key].as_f64() {
+                        assert!((0.0..=64.0).contains(&y), "{input}: {op}");
+                    }
+                }
+                if op["op"] == "rect" {
+                    let bottom = op["y"].as_f64().unwrap() + op["h"].as_f64().unwrap();
+                    assert!(bottom <= 64.0, "{input}: {op}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn an_all_negative_chart_hangs_every_bar_from_the_top_line() {
+        let ops = scene_ops("a: -3, b: -9");
+        let zero = ops[0]["y1"].as_f64().unwrap();
+        for bar in rects(&ops) {
+            assert_eq!(bar["y"].as_f64().unwrap(), zero);
+        }
+    }
+
+    #[test]
+    fn an_all_zero_chart_keeps_its_line_at_the_bottom() {
+        let ops = scene_ops("a: 0, b: 0");
+        assert_eq!(ops[0]["y1"].as_f64().unwrap(), 52.0);
+        assert!(rects(&ops).iter().all(|r| r["h"] == 0.0));
     }
 }

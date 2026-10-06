@@ -4,7 +4,7 @@
     {
       "id": "code-exec",
       "name": "Code Blocks",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "summary": "Run a code block in your space and see its output inline, like a notebook cell."
     },
     {
@@ -40,7 +40,7 @@
     {
       "id": "plot",
       "name": "Plot",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Draw a bar chart from numbers, inline."
     },
     {
@@ -112,7 +112,7 @@
     {
       "id": "poll",
       "name": "Poll",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "summary": "Run a live poll in the channel, one vote per person, and watch the bars fill in."
     }
   ]

@@ -1,10 +1,10 @@
 //! Evaluates a JavaScript snippet in a fresh boa context.
 //!
-//! `console.log` is shimmed to append to a per-call output buffer instead of
+//! `console.log` (and info, warn, error, debug, one shared stream) is shimmed to append to a per-call output buffer instead of
 //! doing anything host-visible (boa has no host bindings to begin with).
 //! The response combines everything printed with the script's completion
 //! value, matching a REPL. Any parse or runtime error is caught and returned
-//! as text; nothing here ever panics on user input.
+//! as text after whatever was printed before it; nothing here ever panics on user input.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -39,7 +39,15 @@ pub fn execute(source: &str) -> Result<String, String> {
 
     match result {
         Ok(value) => Ok(combine(printed, value, &mut context)),
-        Err(err) => Err(err.to_string()),
+        Err(err) => Err(with_printed(printed, err.to_string())),
+    }
+}
+
+fn with_printed(printed: String, error: String) -> String {
+    if printed.is_empty() {
+        error
+    } else {
+        format!("{printed}\n{error}")
     }
 }
 
@@ -57,13 +65,17 @@ fn combine(printed: String, value: JsValue, context: &mut Context) -> String {
 }
 
 fn install_console(context: &mut Context) -> JsResult<()> {
-    let console = ObjectInitializer::new(context)
-        .function(
-            NativeFunction::from_fn_ptr(console_log),
-            js_string!("log"),
-            0,
-        )
-        .build();
+    let mut init = ObjectInitializer::new(context);
+    for name in [
+        js_string!("log"),
+        js_string!("info"),
+        js_string!("warn"),
+        js_string!("error"),
+        js_string!("debug"),
+    ] {
+        init.function(NativeFunction::from_fn_ptr(console_log), name, 0);
+    }
+    let console = init.build();
     context.register_global_property(js_string!("console"), console, Attribute::all())?;
     Ok(())
 }
@@ -71,7 +83,10 @@ fn install_console(context: &mut Context) -> JsResult<()> {
 fn console_log(_this: &JsValue, args: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
     let mut parts = Vec::with_capacity(args.len());
     for arg in args {
-        parts.push(arg.to_string(context)?.to_std_string_lossy());
+        parts.push(match arg.as_string() {
+            Some(text) => text.to_std_string_lossy(),
+            None => arg.display().to_string(),
+        });
     }
     OUTPUT.with(|buf| {
         let mut buf = buf.borrow_mut();
@@ -81,4 +96,42 @@ fn console_log(_this: &JsValue, args: &[JsValue], context: &mut Context) -> JsRe
         buf.push_str(&parts.join(" "));
     });
     Ok(JsValue::undefined())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::execute;
+
+    #[test]
+    fn output_printed_before_a_throw_is_kept() {
+        let err = execute("console.log('step 1'); null.x").unwrap_err();
+        assert!(err.starts_with("step 1\n"), "console output lost on throw: {err:?}");
+        assert!(err.contains("TypeError"), "the error itself must still be reported: {err:?}");
+    }
+
+    #[test]
+    fn a_throw_with_nothing_printed_is_just_the_error() {
+        let err = execute("throw new Error('x')").unwrap_err();
+        assert!(err.starts_with("Error: x"), "{err:?}");
+    }
+
+    #[test]
+    fn console_error_warn_info_and_debug_print_like_log() {
+        for method in ["error", "warn", "info", "debug"] {
+            let out = execute(&format!("console.{method}('hello')"));
+            assert_eq!(out.as_deref(), Ok("hello"), "console.{method}: {out:?}");
+        }
+    }
+
+    #[test]
+    fn console_log_inspects_objects_instead_of_printing_object_object() {
+        let out = execute("console.log({a:1})").unwrap();
+        assert!(out.contains("a: 1"), "got {out:?}");
+    }
+
+    #[test]
+    fn console_log_keeps_strings_unquoted_and_symbols_printable() {
+        let out = execute("console.log('a', 1, Symbol('s'))").unwrap();
+        assert_eq!(out, "a 1 Symbol(s)");
+    }
 }

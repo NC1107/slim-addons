@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build a module to wasm, place it at its versioned artifact path, and pin its
 # SHA-256 into the manifest - the three steps slim's registry layout needs.
+# Needs the toolchain pinned in rust-toolchain.toml.
 #
 # Usage: scripts/package-module.sh <module-dir>
 #   e.g. scripts/package-module.sh modules/_template
@@ -19,15 +20,10 @@ id=$(python3 -c "import json,sys;print(json.load(open('$manifest'))['id'])")
 version=$(python3 -c "import json,sys;print(json.load(open('$manifest'))['version'])")
 echo "packaging $id v$version"
 
-# Build. --target-dir keeps artifacts out of the module dir (it is gitignored).
-( cd "$dir" && cargo build --release --target wasm32-unknown-unknown )
-wasm=$(find "$dir/target/wasm32-unknown-unknown/release" -maxdepth 1 -name '*.wasm' | head -1)
-[[ -f "$wasm" ]] || { echo "no .wasm built under $dir/target" >&2; exit 1; }
-
-# Place it at the versioned artifact path the manifest will point at.
+# Build with the registry's one recipe, straight to the versioned artifact path
+# the manifest will point at. CI rebuilds it the same way and compares.
 artifact_path="modules/$id/$version/module.wasm"
-mkdir -p "$(dirname "$artifact_path")"
-cp "$wasm" "$artifact_path"
+"$(dirname "$0")/build-wasm.sh" "$dir" "$artifact_path"
 sha=$(sha256sum "$artifact_path" | cut -d' ' -f1)
 echo "sha256: $sha"
 
