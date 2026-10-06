@@ -14,14 +14,13 @@ pub fn apply(command: &str, input: &str) -> Result<String, String> {
     }
 }
 
-/// The pattern is the first line; the rest is the text. A one-liner uses ` :: `.
+/// The pattern is the first line; the rest is the text. A first line with ` :: `
+/// in it is the one-line form, and everything after the separator is the text.
 fn split_input(input: &str) -> Result<(&str, &str), String> {
-    let (pattern, subject) = match input.split_once('\n') {
-        Some(parts) => parts,
-        None => input
-            .split_once(" :: ")
-            .ok_or("give me a pattern, then the text on the next line (or pattern :: text)")?,
-    };
+    let first_line = input.split('\n').next().unwrap_or("");
+    let split = if first_line.contains(" :: ") { input.split_once(" :: ") } else { input.split_once('\n') };
+    let (pattern, subject) = split
+        .ok_or("give me a pattern, then the text on the next line (or pattern :: text)")?;
     let pattern = pattern.trim_end_matches('\r');
     if pattern.is_empty() {
         return Err("the pattern is empty".to_string());
@@ -31,7 +30,7 @@ fn split_input(input: &str) -> Result<(&str, &str), String> {
 
 fn test(input: &str) -> Result<String, String> {
     if input.len() > MAX_INPUT {
-        return Err(format!("too long: keep it under {MAX_INPUT} characters"));
+        return Err(format!("too long: keep it under {MAX_INPUT} bytes"));
     }
     let (pattern, subject) = split_input(input)?;
     let re = RegexBuilder::new(pattern)
@@ -129,5 +128,21 @@ mod tests {
     #[test]
     fn input_without_a_subject_asks_for_one() {
         assert!(apply("test", "abc").is_err());
+    }
+
+    #[test]
+    fn the_one_line_form_keeps_newlines_in_the_subject() {
+        assert!(run("\\d+ :: a1\nb2").starts_with("2 matches"));
+    }
+
+    #[test]
+    fn a_separator_on_a_later_line_does_not_split_the_two_line_form() {
+        assert_eq!(run("a\nx :: a"), "1 match\n1: \"a\" at 5..6");
+    }
+
+    #[test]
+    fn the_size_limit_is_worded_in_bytes() {
+        let err = apply("test", &format!("a\n{}", "e".repeat(MAX_INPUT))).unwrap_err();
+        assert!(err.contains("bytes"), "{err}");
     }
 }
