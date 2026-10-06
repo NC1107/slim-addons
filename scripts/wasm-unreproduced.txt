@@ -2,7 +2,6 @@
 calc
 connect-four
 cron-explain
-dice
 game-of-life
 hashkit
 json-tools
