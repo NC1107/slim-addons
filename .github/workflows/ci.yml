@@ -38,6 +38,8 @@ jobs:
             )
             echo "::endgroup::"
           done
+      - name: Check every module has unit tests
+        run: python3 scripts/check-module-tests.py
       # Rebuilds each module's wasm with scripts/build-wasm.sh and compares it to the pinned one.
       - name: Check the pinned wasm was built from this source
         env:
@@ -63,3 +65,5 @@ jobs:
         run: |
           (cd tools/run-module && cargo build --locked --release)
           python3 scripts/check-app-scenes.py target/release/run-module
+      - name: Run every command-only module through the wasm abi
+        run: python3 scripts/check-command-modules.py target/release/run-module

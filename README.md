@@ -69,7 +69,8 @@ shipped before the check existed.
 ## Checks
 
 CI (`.github/workflows/ci.yml`) runs on every pull request and push to main.
-It runs `cargo test` for each module, `scripts/check-wasm-builds.py`, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py` over every app's first frame.
+It runs `cargo test` for each module, `scripts/check-wasm-builds.py`, then `scripts/check-catalogue.py`, then `scripts/check-app-scenes.py` over every app's first frame, then `scripts/check-command-modules.py`, which runs each command-only module through the wasm abi with a fixed input.
+Right after the `cargo test` loop, `scripts/check-module-tests.py` fails a module whose `src` has no `#[test]`.
 
 Each module keeps its logic in plain Rust with unit tests, so `cd modules/<id> && cargo test` runs them with no wasm involved.
 

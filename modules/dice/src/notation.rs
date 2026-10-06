@@ -75,6 +75,13 @@ fn split_modifier(rest: &str) -> (&str, Option<&str>) {
 mod tests {
     use super::parse;
 
+    fn refusal(text: &str) -> String {
+        match parse(text) {
+            Err(message) => message,
+            Ok(_) => panic!("{text:?} should have been refused"),
+        }
+    }
+
     #[test]
     fn spaces_around_the_modifier_are_accepted() {
         for text in ["2d20 + 3", "2d20 +3", "2d20+ 3", "2d20 - 3"] {
@@ -82,6 +89,28 @@ mod tests {
             assert_eq!((n.count, n.sides, n.modifier.abs()), (2, 20, 3), "{text:?}");
         }
         assert_eq!(parse("2d20 - 3").unwrap().modifier, -3);
+    }
+
+    #[test]
+    fn a_missing_count_means_one_and_either_case_of_d_works() {
+        let n = parse("d20").unwrap();
+        assert_eq!((n.count, n.sides, n.modifier), (1, 20, 0));
+        assert_eq!(parse("3D6-1").unwrap().modifier, -1);
+    }
+
+    #[test]
+    fn counts_and_sides_outside_their_limits_are_refused() {
+        for text in ["0d6", "1001d6", "1d0", "1d1000001"] {
+            assert!(refusal(text).contains("must be between"), "{text}");
+        }
+        assert!(parse("1000d1000000").is_ok());
+    }
+
+    #[test]
+    fn malformed_notation_is_refused_with_the_usage() {
+        for text in ["", "d", "2d", "1d20+", "20", "adb", "2d20+x"] {
+            assert!(refusal(text).contains("dice notation like 2d20+3"), "{text}");
+        }
     }
 
     #[test]
