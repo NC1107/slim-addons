@@ -1,3 +1,2 @@
 # Modules that had no unit tests when check-module-tests.py was added. Remove a line when its module gets one; never add one.
 spirograph
-word-guess
