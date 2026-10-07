@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "regex-tester",
   "name": "Regex Tester",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "summary": "Show every match of a regex in some text, with its groups.",
   "description": "Adds a Test permission and a test command. Type `/regex \\d+ :: a1 b22`, or write a `regex` code block with the pattern on the first line and the text below it, then press Run. Lists each match with its position and capture groups. Matching is linear-time, so a hostile pattern cannot run away, and oversized patterns are refused.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/regex-tester/0.1.0/module.wasm",
-    "sha256": "248cf0aa231b8a8acf02982a4d65904da28301faa3906772f14de855a48d326e"
+    "path": "modules/regex-tester/0.1.1/module.wasm",
+    "sha256": "c0854b2b176011d7a68766228b91c9cbedd3f560eb5c2dc02758f4f82333ab06"
   },
   "permissions": [
     {

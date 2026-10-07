@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "calc",
   "name": "Calc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "summary": "Evaluate arithmetic with variables, a line at a time.",
   "description": "Adds a Calculate permission and an eval command. Type `/calc 2 * (3 + 4)`, or write a `calc` code block with one expression or `name = expression` per line and press Run. Supports + - * / % ^, parentheses, pi, e, ans, and sqrt, abs, round, floor, ceil, min, max, ln, log10, sign. Output is plain text and the same input always gives the same answer.",
   "author": "slim-m",
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/calc/0.1.0/module.wasm",
-    "sha256": "0c74ff71dc324211408d59e3386d21c1548c1a0ad22ef4049b3dd4ad9b6dc823"
+    "path": "modules/calc/0.1.1/module.wasm",
+    "sha256": "73d457d519ae103734891a7482eeb6c57b8e5d5406ac654e4b665b0b07f8251f"
   },
   "permissions": [
     {

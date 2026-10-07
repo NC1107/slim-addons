@@ -48,21 +48,29 @@ fn parse(input: &str) -> Vec<(String, f64)> {
     out
 }
 
+/// A number, but never an infinity or NaN: those would put null coordinates in the scene.
+fn finite(text: &str) -> Result<f64, ()> {
+    match text.parse::<f64>() {
+        Ok(v) if v.is_finite() => Ok(v),
+        _ => Err(()),
+    }
+}
+
 /// Splits one item into an optional label and its value. A bare number has no
 /// label; `label: value` / `label = value` / `label value` do.
 fn split_item(item: &str) -> (Option<String>, Option<f64>) {
-    if let Ok(v) = item.parse::<f64>() {
+    if let Ok(v) = finite(item) {
         return (None, Some(v));
     }
     for sep in [':', '='] {
         if let Some((label, rest)) = item.rsplit_once(sep) {
-            if let Ok(v) = rest.trim().parse::<f64>() {
+            if let Ok(v) = finite(rest.trim()) {
                 return (Some(label.trim().to_string()), Some(v));
             }
         }
     }
     if let Some((label, rest)) = item.rsplit_once(char::is_whitespace) {
-        if let Ok(v) = rest.trim().parse::<f64>() {
+        if let Ok(v) = finite(rest.trim()) {
             return (Some(label.trim().to_string()), Some(v));
         }
     }
@@ -123,7 +131,7 @@ fn render(data: &[(String, f64)]) -> String {
 /// A compact number label: integers without a trailing `.0`, others to one dp.
 fn trim_num(v: f64) -> String {
     if v.fract() == 0.0 {
-        format!("{}", v as i64)
+        format!("{}", v + 0.0)
     } else {
         format!("{v:.1}")
     }
@@ -234,5 +242,22 @@ mod tests {
         let ops = scene_ops("a: 0, b: 0");
         assert_eq!(ops[0]["y1"].as_f64().unwrap(), 52.0);
         assert!(rects(&ops).iter().all(|r| r["h"] == 0.0));
+    }
+
+    #[test]
+    fn a_non_finite_value_is_skipped_like_other_junk() {
+        for junk in ["a: inf, b: 3", "a: 1e999, b: 3", "a: -infinity, b: 3", "a: nan, b: 3"] {
+            let scene = apply("bars", junk).unwrap();
+            assert!(!scene.contains("null"), "{junk}: {scene}");
+            assert!(scene.contains("1 value"), "{junk}: {scene}");
+        }
+        assert!(apply("bars", "inf, nan").is_err());
+    }
+
+    #[test]
+    fn a_large_integer_label_is_not_saturated() {
+        let scene = apply("bars", "a: 1e20, b: 3").unwrap();
+        assert!(!scene.contains("9223372036854775807"), "{scene}");
+        assert!(scene.contains("100000000000000000000"), "{scene}");
     }
 }

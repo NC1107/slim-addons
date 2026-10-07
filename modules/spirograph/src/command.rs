@@ -1,5 +1,5 @@
-//! Spirograph: a roulette curve drawn as one `path` op, with tappable buttons
-//! that change the gears.
+//! Spirograph: a roulette curve drawn as one `path` op, with controls that
+//! change the gears.
 //!
 //! This module exists to be the thing the `path` op made possible. Before it, a
 //! scene could draw rectangles, circles, lines, a colour grid and text, so a
@@ -10,12 +10,13 @@
 //! `state` as `R,r,d`, a tap arrives as an action, and this returns the next
 //! frame. There is no host storage and no memory between calls.
 //!
-//! The scene's `controls` vocabulary is fixed (`play`, `step`, `random`,
-//! `clear`, `reset`), so the per-gear buttons are tappable `rect` ops instead.
-//! That is the general way a module gets controls of its own shape.
+//! The per-gear buttons are scene `controls` with names of the module's own
+//! (`R+`, `d-`, ...): the client renders any name outside its reserved set as a
+//! labelled button that sends the name back as the action, so they are
+//! reachable by keyboard and screen reader and sized by the host.
 
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::json;
 
 /// Samples along the curve.
 ///
@@ -127,11 +128,16 @@ impl Gears {
         gears
     }
 
-    /// How many lobes the curve closes after, which is also how far `t` runs:
-    /// `r / gcd(R, r)` turns of the inner gear brings the pen home.
+    /// How many turns of the inner gear bring the pen home, which is how far
+    /// `t` runs: `r / gcd(R, r)`.
     fn turns(&self) -> f64 {
         let g = gcd(self.outer.max(1), self.inner.max(1));
         (self.inner.max(1) / g.max(1)) as f64
+    }
+
+    /// How many lobes the drawn curve has: `R / gcd(R, r)`.
+    fn lobes(&self) -> i64 {
+        self.outer.max(1) / gcd(self.outer.max(1), self.inner.max(1)).max(1)
     }
 }
 
@@ -194,44 +200,13 @@ fn push_fixed(out: &mut String, value: f64) {
     out.push_str(&frac.to_string());
 }
 
-/// One tappable button: a rect that carries the action, and its label.
-fn button(x: f64, label: &str, action: &str) -> [Value; 2] {
-    [
-        json!({
-            "op": "rect",
-            "x": x, "y": 88.0, "w": 11.0, "h": 9.0,
-            "fill": "sunken", "stroke": "border", "sw": 0.4, "r": 1.5,
-            "tap": action
-        }),
-        json!({
-            "op": "text",
-            "x": x + 5.5, "y": 92.5, "s": label,
-            "fill": "text", "size": 5.0, "align": "center"
-        }),
-    ]
-}
-
 fn render(gears: &Gears) -> String {
-    let mut ops = vec![json!({
+    let ops = vec![json!({
         "op": "path",
         "d": path_data(gears),
         "stroke": "accent",
         "sw": 0.5
     })];
-    for (i, (label, action)) in [
-        ("R-", "R-"),
-        ("R+", "R+"),
-        ("r-", "r-"),
-        ("r+", "r+"),
-        ("d-", "d-"),
-        ("d+", "d+"),
-    ]
-    .iter()
-    .enumerate()
-    {
-        ops.extend(button(3.0 + (i as f64) * 15.5, label, action));
-    }
-
     json!({
         "$slim": "scene/1",
         "width": 100,
@@ -239,14 +214,110 @@ fn render(gears: &Gears) -> String {
         "background": "surface",
         "ops": ops,
         "state": gears.state(),
-        "controls": ["random", "reset"],
+        "controls": ["R-", "R+", "r-", "r+", "d-", "d+", "random", "reset"],
         "status": format!(
             "R {} · r {} · d {} · {} lobes",
             gears.outer,
             gears.inner,
             gears.pen,
-            gears.turns() as i64
+            gears.lobes()
         ),
     })
     .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+
+    fn scene(input: &str) -> Value {
+        serde_json::from_str(&apply("spiro", input).unwrap()).unwrap()
+    }
+
+    fn act(action: &str, state: &str) -> Value {
+        scene(&json!({ "action": action, "state": state }).to_string())
+    }
+
+    fn controls(scene: &Value) -> Vec<&str> {
+        scene["controls"].as_array().unwrap().iter().map(|c| c.as_str().unwrap()).collect()
+    }
+
+    #[test]
+    fn the_status_counts_lobes_as_outer_over_gcd() {
+        let cases = [("5,3,5", 5), ("34,13,21", 34), ("8,6,4", 4), ("12,4,4", 3)];
+        for (state, lobes) in cases {
+            let status = act("", state)["status"].as_str().unwrap().to_owned();
+            assert!(status.ends_with(&format!("{lobes} lobes")), "{state}: {status}");
+        }
+    }
+
+    #[test]
+    fn the_gear_buttons_are_scene_controls_not_tap_rects() {
+        let scene = scene("");
+        for name in ["R-", "R+", "r-", "r+", "d-", "d+", "random", "reset"] {
+            assert!(controls(&scene).contains(&name), "missing control {name}");
+        }
+        let ops = scene["ops"].as_array().unwrap();
+        assert!(ops.iter().all(|op| op.get("tap").is_none()), "a tap rect is left in the scene");
+    }
+
+    #[test]
+    fn each_gear_action_steps_one_gear_by_one() {
+        let cases = [
+            ("R+", "35,13,21"), ("R-", "33,13,21"), ("r+", "34,14,21"),
+            ("r-", "34,12,21"), ("d+", "34,13,22"), ("d-", "34,13,20"),
+        ];
+        for (action, state) in cases {
+            assert_eq!(act(action, "34,13,21")["state"], state, "{action}");
+        }
+    }
+
+    #[test]
+    fn the_gears_stop_at_the_bounds() {
+        assert_eq!(act("R+", "60,13,21")["state"], "60,13,21");
+        assert_eq!(act("r-", "34,2,21")["state"], "34,2,21");
+        assert_eq!(Gears::parse("1,999,0").state(), "2,60,2");
+    }
+
+    #[test]
+    fn an_unreadable_state_or_action_falls_back_to_the_default_gears() {
+        assert_eq!(act("", "garbage")["state"], "34,13,21");
+        assert_eq!(act("reset", "5,3,5")["state"], "34,13,21");
+        assert_eq!(scene("not json")["state"], "34,13,21");
+    }
+
+    #[test]
+    fn shuffling_stays_in_range_with_the_inner_gear_smaller() {
+        let mut gears = Gears::default();
+        for _ in 0..200 {
+            gears = gears.shuffled();
+            for g in [gears.outer, gears.inner, gears.pen] {
+                assert!((MIN_GEAR..=MAX_GEAR).contains(&g));
+            }
+            assert!(gears.inner < gears.outer);
+        }
+    }
+
+    #[test]
+    fn the_path_fits_the_renderer_step_cap_for_every_gear_pair() {
+        for outer in MIN_GEAR..=MAX_GEAR {
+            for inner in [MIN_GEAR, 7, outer.min(MAX_GEAR)] {
+                let d = path_data(&Gears { outer, inner, pen: 10 });
+                let steps = d.chars().filter(|c| matches!(c, 'M' | 'L')).count();
+                assert!(steps <= 512, "{outer},{inner}: {steps} steps");
+            }
+        }
+    }
+
+    #[test]
+    fn push_fixed_writes_two_decimals_and_keeps_a_small_negative_sign() {
+        let mut out = String::new();
+        push_fixed(&mut out, -0.05);
+        out.push(' ');
+        push_fixed(&mut out, 12.5);
+        out.push(' ');
+        push_fixed(&mut out, 3.0);
+        assert_eq!(out, "-0.05 12.50 3.00");
+    }
 }

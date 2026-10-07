@@ -35,27 +35,38 @@ const RIGHT: &str = "#4f9d69";
 const MOVED: &str = "#e3b341";
 const ABSENT: &str = "sunken";
 
-pub fn apply(command: &str, input: &str) -> Result<String, String> {
+pub fn apply(command: &str, input: &str, caller: &str) -> Result<String, String> {
     match command {
-        "wordguess" => Ok(play(input)),
+        "wordguess" => Ok(play(input, caller)),
         other => Err(format!("unknown command: {other}")),
     }
 }
 
-fn play(input: &str) -> String {
+/// A seed for a game nobody has played yet, folded from the caller's id so two
+/// people launching do not get the same answer.
+fn seed_from(input: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &byte in input.as_bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01B3);
+    }
+    hash
+}
+
+fn play(input: &str, caller: &str) -> String {
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        return render(&Game::new(0));
+        return render(&Game::new(seed_from(caller)));
     }
     let (action, mut game) = match serde_json::from_str::<Action>(trimmed) {
-        Ok(a) => (a.action, Game::parse(&a.state)),
-        Err(_) => (String::new(), Game::new(0)),
+        Ok(a) => (a.action, Game::parse(&a.state, seed_from(caller))),
+        Err(_) => (String::new(), Game::new(seed_from(&format!("{caller}|{trimmed}")))),
     };
 
     if let Some(guess) = action.strip_prefix("guess:") {
         game.guess(guess);
     } else if action == "reset" || action == "clear" || action == "new" {
-        game = Game::new(game.seed.wrapping_add(1));
+        game = Game::new(seed_from(&format!("{}|{caller}", game.seed)));
     }
     render(&game)
 }
@@ -80,9 +91,9 @@ impl Game {
         Game { seed, guesses: Vec::new(), refused: None }
     }
 
-    fn parse(state: &str) -> Self {
+    fn parse(state: &str, fallback_seed: u64) -> Self {
         let (seed, rest) = state.split_once('|').unwrap_or((state, ""));
-        let seed = seed.trim().parse::<u64>().unwrap_or(0);
+        let seed = seed.trim().parse::<u64>().unwrap_or(fallback_seed);
         let guesses = rest
             .split(',')
             .map(str::trim)
@@ -225,4 +236,106 @@ fn render(game: &Game) -> String {
         "status": status,
     })
     .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn state_of(scene: &str) -> String {
+        let parsed: Value = serde_json::from_str(scene).unwrap();
+        parsed["state"].as_str().unwrap().to_owned()
+    }
+
+    fn act(action: &str, state: &str, caller: &str) -> String {
+        let input = json!({ "action": action, "state": state }).to_string();
+        apply("wordguess", &input, caller).unwrap()
+    }
+
+    #[test]
+    fn two_callers_launching_get_different_games() {
+        let a = state_of(&apply("wordguess", "", "alice").unwrap());
+        let b = state_of(&apply("wordguess", "", "bob").unwrap());
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn the_same_caller_launching_twice_gets_the_same_game() {
+        let a = apply("wordguess", "", "alice").unwrap();
+        let b = apply("wordguess", "", "alice").unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn an_unreadable_state_starts_a_game_seeded_by_the_caller() {
+        let a = state_of(&act("guess:crane", "", "alice"));
+        let b = state_of(&act("guess:crane", "", "bob"));
+        assert_ne!(a.split('|').next(), b.split('|').next());
+    }
+
+    #[test]
+    fn a_reset_by_another_caller_is_a_different_game() {
+        let start = state_of(&apply("wordguess", "", "alice").unwrap());
+        let a = state_of(&act("reset", &start, "alice"));
+        let b = state_of(&act("reset", &start, "bob"));
+        assert_ne!(a, start);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn a_doubled_letter_is_only_amber_when_a_copy_is_unclaimed() {
+        assert_eq!(score("speed", "abide"), vec![ABSENT, ABSENT, MOVED, ABSENT, MOVED]);
+        assert_eq!(score("sheep", "melee"), vec![ABSENT, ABSENT, MOVED, RIGHT, ABSENT]);
+        assert_eq!(score("crane", "crane"), vec![RIGHT; 5]);
+    }
+
+    #[test]
+    fn a_guess_must_be_five_letters_a_to_z_and_new() {
+        let mut game = Game::new(1);
+        game.guess("abc");
+        game.guess("abcd1");
+        assert!(game.guesses.is_empty());
+        assert!(game.refused.is_some());
+        game.guess("Crane");
+        game.guess("crane");
+        assert_eq!(game.guesses, vec!["crane"]);
+        assert_eq!(game.refused.as_deref(), Some("already guessed"));
+    }
+
+    #[test]
+    fn the_state_round_trips_and_drops_unusable_guesses() {
+        let mut game = Game::new(42);
+        game.guess("crane");
+        game.guess("slate");
+        let back = Game::parse(&game.state(), 0);
+        assert_eq!(back.seed, 42);
+        assert_eq!(back.guesses, game.guesses);
+        assert_eq!(Game::parse("7|crane,TOOLONG,ab,slate", 0).guesses, vec!["crane", "slate"]);
+    }
+
+    #[test]
+    fn the_game_ends_when_solved_or_out_of_tries() {
+        let mut game = Game::new(3);
+        let answer = game.answer();
+        game.guess(answer);
+        assert!(game.solved() && game.over());
+        game.guess("crane");
+        assert_eq!(game.guesses.len(), 1);
+
+        let mut lost = Game::new(3);
+        for w in ["aaaaa", "bbbbb", "ccccc", "ddddd", "eeeee", "fffff", "ggggg"] {
+            lost.guess(w);
+        }
+        assert_eq!(lost.guesses.len(), TRIES);
+        assert!(lost.over() && !lost.solved());
+    }
+
+    #[test]
+    fn an_open_game_offers_the_input_and_a_finished_one_does_not() {
+        let open = render(&Game::new(3));
+        assert!(open.contains(r#""op":"input""#));
+        let mut done = Game::new(3);
+        done.guess(done.answer());
+        assert!(!render(&done).contains(r#""op":"input""#));
+    }
 }

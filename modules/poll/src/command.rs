@@ -13,7 +13,10 @@ use crate::ledger::{Cast, Poll};
 const MIN_OPTIONS: usize = 2;
 const MAX_OPTIONS: usize = 6;
 const MAX_QUESTION: usize = 60;
-const MAX_OPTION: usize = 20;
+const MAX_OPTION: usize = 14;
+const QUESTION_SIZE: f64 = 6.0;
+const QUESTION_LINE_CHARS: usize = 26;
+const QUESTION_LEADING: f64 = 6.5;
 
 pub fn apply(command: &str, input: &str, caller: &str) -> Result<String, String> {
     match command {
@@ -128,6 +131,28 @@ fn parse_setup(text: &str) -> Result<Poll, String> {
     Ok(Poll::new(question, options))
 }
 
+/// Breaks `text` into lines of at most `width` characters, at spaces where it can.
+fn wrap(text: &str, width: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    for word in text.split_whitespace() {
+        let word: Vec<char> = word.chars().collect();
+        for piece in word.chunks(width) {
+            let piece: String = piece.iter().collect();
+            match lines.last_mut() {
+                Some(last) if last.chars().count() + 1 + piece.chars().count() <= width => {
+                    last.push(' ');
+                    last.push_str(&piece);
+                }
+                _ => lines.push(piece),
+            }
+        }
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}
+
 fn render_setup(refused: Option<&str>) -> String {
     let status = refused
         .map(str::to_string)
@@ -150,12 +175,21 @@ fn render_setup(refused: Option<&str>) -> String {
 
 fn render_poll(poll: &Poll, note: Option<&str>) -> String {
     let total = poll.total();
-    let mut ops: Vec<Value> = vec![json!({
-        "op": "text", "x": 50.0, "y": 8.0, "s": poll.question, "fill": "text", "align": "center", "size": 7.0
-    })];
+    let lines = wrap(&poll.question, QUESTION_LINE_CHARS);
+    let mut ops: Vec<Value> = lines
+        .iter()
+        .enumerate()
+        .map(|(i, line)| {
+            json!({
+                "op": "text", "x": 50.0, "y": 7.0 + (i as f64) * QUESTION_LEADING, "s": line,
+                "fill": "text", "align": "center", "size": QUESTION_SIZE
+            })
+        })
+        .collect();
+    let rows_top = 16.0 + (lines.len() - 1) as f64 * QUESTION_LEADING;
 
     for (i, label) in poll.options.iter().enumerate() {
-        let y = 16.0 + (i as f64) * 13.0;
+        let y = rows_top + (i as f64) * 13.0;
         let votes = poll.tally(i);
         let pct = if total > 0 {
             votes as f64 / total as f64
@@ -201,7 +235,7 @@ fn render_poll(poll: &Poll, note: Option<&str>) -> String {
     } else {
         vec!["reset"]
     };
-    let height = 16.0 + (poll.options.len() as f64) * 13.0 + 6.0;
+    let height = rows_top + (poll.options.len() as f64) * 13.0 + 6.0;
 
     json!({
         "$slim": "scene/1",
@@ -362,5 +396,47 @@ mod tests {
                 assert_ne!(out, scene, "control {control} was treated as an unknown action");
             }
         }
+    }
+
+    /// A generous per-character width in scene units for Plex-like text.
+    fn extent(op: &Value) -> (f64, f64) {
+        let width = op["s"].as_str().unwrap().chars().count() as f64 * 0.55 * op["size"].as_f64().unwrap();
+        let x = op["x"].as_f64().unwrap();
+        match op["align"].as_str().unwrap() {
+            "center" => (x - width / 2.0, x + width / 2.0),
+            "right" => (x - width, x),
+            _ => (x, x + width),
+        }
+    }
+
+    #[test]
+    fn a_long_question_and_label_stay_inside_the_scene_and_clear_of_the_count() {
+        let long_q = "Should we migrate the whole backend to the new framework now?";
+        let setup = format!("setup:{long_q} | twenty chars long ab, twenty chars long cd");
+        let voted = act(&setup, "", A)["state"].as_str().unwrap().to_owned();
+        let out = act("vote:0", &voted, A);
+        let texts: Vec<&Value> =
+            out["ops"].as_array().unwrap().iter().filter(|op| op["op"] == "text").collect();
+        for op in &texts {
+            let (left, right) = extent(op);
+            assert!(left >= 0.0 && right <= 100.0, "{} spans {left}..{right}", op["s"]);
+        }
+        for pair in texts[texts.len() - 4..].chunks(2) {
+            let (_, label_end) = extent(pair[0]);
+            let (count_start, _) = extent(pair[1]);
+            assert!(label_end < count_start, "{} runs into {}", pair[0]["s"], pair[1]["s"]);
+        }
+    }
+
+    #[test]
+    fn the_whole_question_is_still_drawn_when_it_wraps() {
+        let q = "Should we migrate the whole backend to the new framework now";
+        let out = act(&format!("setup:{q} | a, b"), "", A);
+        let drawn: Vec<&str> = out["ops"].as_array().unwrap().iter()
+            .filter(|op| op["op"] == "text" && op["size"].as_f64() == Some(QUESTION_SIZE))
+            .map(|op| op["s"].as_str().unwrap())
+            .collect();
+        assert!(drawn.len() > 1);
+        assert_eq!(drawn.join(" "), q);
     }
 }

@@ -3,11 +3,13 @@
 //! arrives as an action, and the module returns the next frame. No host
 //! storage, no memory between calls.
 //!
-//! **The mines are not in the state.** Only a seed is, and the field is
-//! rebuilt from it on every frame. Two reasons. A state that carried the
-//! mine positions would hand the answer to anyone who read it, which in a
-//! channel where the state is shared is the whole game. And the state stays
-//! short: a seed and the revealed/flagged masks, rather than a third grid.
+//! **The mines are not in the state, only a seed is.** The field is rebuilt
+//! from it on every frame, which keeps the state short: a seed and the
+//! revealed/flagged masks, rather than a third grid. It is not secrecy. The
+//! seed is in the state every viewer receives and `mines_for` has no secret
+//! input, so anyone who reads the state can compute the mines. That is
+//! acceptable for a cooperative game; hidden information waits for per-module
+//! storage (decision 0038).
 //!
 //! The first tap is always safe. The seed is chosen at launch, before any
 //! tap, so it cannot be steered by where somebody clicked - instead the
@@ -29,28 +31,28 @@ pub const MINES: usize = 10;
 /// one almost immediately; the bound only stops a pathological search.
 const OPENING_ATTEMPTS: u32 = 64;
 
-pub fn apply(command: &str, input: &str) -> Result<String, String> {
+pub fn apply(command: &str, input: &str, caller: &str) -> Result<String, String> {
     match command {
-        "play" => Ok(play(input)),
+        "play" => Ok(play(input, caller)),
         other => Err(format!("unknown command: {other}")),
     }
 }
 
-fn play(input: &str) -> String {
+fn play(input: &str, caller: &str) -> String {
     let trimmed = input.trim();
     // The launch runs with empty input: start a fresh board.
     if trimmed.is_empty() {
-        return render(&Board::new(seed_from(trimmed)));
+        return render(&Board::new(seed_from(caller)));
     }
     let (action, mut board) = match serde_json::from_str::<Action>(trimmed) {
         Ok(a) => {
             let board = Board::from_state(&a.state, &a.action);
             (a.action, board)
         }
-        Err(_) => (String::new(), Board::new(seed_from(trimmed))),
+        Err(_) => (String::new(), Board::new(seed_from(&format!("{caller}|{trimmed}")))),
     };
     match action.as_str() {
-        "new game" | "new" => board = Board::new(board.seed.wrapping_add(0x9E37_79B9)),
+        "new game" | "new" => board = Board::new(seed_from(&format!("{}|{caller}", board.seed))),
         a if a.starts_with("flag") || a.starts_with("dig") => {
             board.flagging = !board.flagging
         }
@@ -72,8 +74,8 @@ struct Action {
     state: String,
 }
 
-/// A seed for a board nobody has played yet. Folded from whatever the caller
-/// sent so two launches in a channel are not the same board.
+/// A seed for a board nobody has played yet, folded from the caller's id (and,
+/// for a new game, the previous seed) so two people launching do not share a board.
 fn seed_from(input: &str) -> u64 {
     SplitMix64::from_bytes(input.as_bytes()).next_u64()
 }
@@ -446,14 +448,12 @@ mod tests {
     }
 
     #[test]
-    fn the_state_never_carries_the_mines() {
+    fn the_state_stays_a_short_seed_and_never_carries_the_mine_grid() {
         let (mut board, mines) = board_with_known_field();
         board.tap(first_safe(&mines));
         let state = board.state();
 
-        // The field written out the way the masks are. If this ever appears in
-        // the state, anyone who can read the state can read the mines - which
-        // in a shared channel is the entire game.
+        // The field written out the way the masks are; the state is meant to stay a short seed.
         let field = mask_to(&mines);
         assert!(
             !state.contains(&field),
@@ -647,7 +647,7 @@ mod tests {
         board.tap(0);
         board.flagging = false;
         board.revealed[1] = true;
-        let scenes = [render(&board), render(&Board::new(7)), apply("play", "").unwrap()];
+        let scenes = [render(&board), render(&Board::new(7)), apply("play", "", "").unwrap()];
         for scene in scenes {
             let parsed: serde_json::Value = serde_json::from_str(&scene).unwrap();
             for op in parsed["ops"].as_array().unwrap() {
@@ -665,7 +665,7 @@ mod tests {
 
     #[test]
     fn play_launches_a_scene_with_every_cell_hidden() {
-        let scene = apply("play", "").unwrap();
+        let scene = apply("play", "", "").unwrap();
         assert!(scene.contains(r#""$slim":"scene/1""#));
         assert!(scene.contains("10 mines left"));
         assert!(scene.contains(r#""tap":"c0""#));
@@ -674,7 +674,7 @@ mod tests {
     #[test]
     fn the_flag_control_toggles_the_mode() {
         let fresh = Board::new(3);
-        let out = apply("play", &format!(r#"{{"action":"flag","state":"{}"}}"#, fresh.state()))
+        let out = apply("play", &format!(r#"{{"action":"flag","state":"{}"}}"#, fresh.state()), "")
             .unwrap();
         assert!(out.contains("flagging"));
     }
@@ -685,6 +685,7 @@ mod tests {
         let out = apply(
             "play",
             &format!(r#"{{"action":"new game","state":"{}"}}"#, fresh.state()),
+            "",
         )
         .unwrap();
         assert!(out.contains("10 mines left"));

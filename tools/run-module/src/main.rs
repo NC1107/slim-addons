@@ -1,6 +1,6 @@
 //! Runs a module the way slim runs it, and prints the JSON it answers with.
 //!
-//! Usage: run-module <module.wasm> <command> [input]
+//! Usage: run-module [--caller <id>] [--fuel <n>] <module.wasm> <command> [input]
 //!
 //! This exists because `scripts/check-scene-ops.py` needs something to drive a
 //! module, and because a module author otherwise has no way to see their own
@@ -13,27 +13,66 @@
 //!   slim refuses it - catching an accidental wasi or wasm-bindgen dependency
 //!   here rather than at install time
 //!
-//! What it deliberately does not do is enforce slim's fuel, memory and
-//! wall-clock limits. A module that passes here can still be refused there for
-//! being too expensive; the manifest's `runtime.limits` is the authority on
-//! that, and this tool is about correctness of output.
+//! `--caller` puts `{"caller":{"id":...}}` in the request, which is how a
+//! seat-based module learns who is acting. `--fuel` meters the run and fails it
+//! with `out of fuel` when the budget is spent, the way slim refuses a module
+//! over `runtime.limits.fuel`; without it the run is unmetered.
+//!
+//! Memory and wall-clock limits are not enforced here. The manifest's
+//! `runtime.limits` is the authority on those, and the scripts that drive this
+//! tool put a timeout around each run.
 
 use std::process::ExitCode;
 
-use wasmi::{Engine, Extern, Instance, Linker, Memory, Module, Store};
+use wasmi::{Config, Engine, Extern, Instance, Linker, Memory, Module, Store};
+
+struct Options {
+    path: String,
+    command: String,
+    input: String,
+    caller: Option<String>,
+    fuel: Option<u64>,
+}
+
+fn parse_args(args: &[String]) -> Result<Options, String> {
+    let mut positional = Vec::new();
+    let mut caller = None;
+    let mut fuel = None;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--caller" => caller = Some(iter.next().ok_or("--caller needs an id")?.clone()),
+            "--fuel" => {
+                let n = iter.next().ok_or("--fuel needs a number")?;
+                fuel = Some(n.parse::<u64>().map_err(|_| format!("--fuel: {n} is not a number"))?);
+            }
+            _ => positional.push(arg.clone()),
+        }
+    }
+    match positional.as_slice() {
+        [path, command] => Ok(Options::new(path, command, "", caller, fuel)),
+        [path, command, input] => Ok(Options::new(path, command, input, caller, fuel)),
+        _ => Err("usage: run-module [--caller <id>] [--fuel <n>] <module.wasm> <command> [input]".to_owned()),
+    }
+}
+
+impl Options {
+    fn new(path: &str, command: &str, input: &str, caller: Option<String>, fuel: Option<u64>) -> Self {
+        Options { path: path.into(), command: command.into(), input: input.into(), caller, fuel }
+    }
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let (path, command) = match args.as_slice() {
-        [path, command, ..] => (path, command),
-        _ => {
-            eprintln!("usage: run-module <module.wasm> <command> [input]");
+    let options = match parse_args(&args) {
+        Ok(options) => options,
+        Err(message) => {
+            eprintln!("{message}");
             return ExitCode::from(2);
         }
     };
-    let input = args.get(2).map(String::as_str).unwrap_or("");
 
-    match run(path, command, input) {
+    match run(&options) {
         Ok(output) => {
             println!("{output}");
             ExitCode::SUCCESS
@@ -45,10 +84,17 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(path: &str, command: &str, input: &str) -> Result<String, String> {
+fn run(options: &Options) -> Result<String, String> {
+    let path = &options.path;
     let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
-    let engine = Engine::default();
-    let module = Module::new(&engine, &bytes[..]).map_err(|e| format!("not valid wasm: {e}"))?;
+    run_bytes(&bytes, options)
+}
+
+fn run_bytes(bytes: &[u8], options: &Options) -> Result<String, String> {
+    let mut config = Config::default();
+    config.consume_fuel(options.fuel.is_some());
+    let engine = Engine::new(&config);
+    let module = Module::new(&engine, bytes).map_err(|e| format!("not valid wasm: {e}"))?;
 
     // The import-free rule, enforced the way slim enforces it: an empty linker
     // means instantiation fails if the module wants anything from the host.
@@ -64,27 +110,33 @@ fn run(path: &str, command: &str, input: &str) -> Result<String, String> {
     }
 
     let mut store = Store::new(&engine, ());
+    if let Some(fuel) = options.fuel {
+        store.set_fuel(fuel).map_err(|e| format!("cannot meter the run: {e}"))?;
+    }
     let linker = Linker::<()>::new(&engine);
     let instance = linker
         .instantiate_and_start(&mut store, &module)
         .map_err(|e| format!("cannot instantiate: {e}"))?;
 
-    let request = serde_request(command, input);
+    let request = serde_request(&options.command, &options.input, options.caller.as_deref());
     call_run(&mut store, &instance, request.as_bytes())
 }
 
-/// The request shape slim sends: `{"command":..., "input":..., "entropy":...}`.
+/// The request shape slim sends: `{"command":..., "input":..., "caller":{"id":...}, "entropy":...}`.
 ///
 /// Hand-built rather than pulling in serde, so this tool stays a single small
 /// dependency on the same engine slim uses and nothing more. slim gives every
 /// run a fresh `entropy`; set `RUN_MODULE_ENTROPY` to send one, and leave it
 /// unset to send none, as a host older than the field would.
-fn serde_request(command: &str, input: &str) -> String {
+fn serde_request(command: &str, input: &str, caller: Option<&str>) -> String {
+    let caller = caller
+        .map(|id| format!(",\"caller\":{{\"id\":\"{}\"}}", escape(id)))
+        .unwrap_or_default();
     let entropy = std::env::var("RUN_MODULE_ENTROPY")
         .map(|value| format!(",\"entropy\":\"{}\"", escape(&value)))
         .unwrap_or_default();
     format!(
-        "{{\"command\":\"{}\",\"input\":\"{}\"{entropy}}}",
+        "{{\"command\":\"{}\",\"input\":\"{}\"{caller}{entropy}}}",
         escape(command),
         escape(input)
     )
@@ -131,7 +183,10 @@ fn call_run(
 
     let packed = run
         .call(&mut *store, (in_ptr, in_len))
-        .map_err(|e| format!("run trapped: {e}"))?;
+        .map_err(|e| match e.as_trap_code() {
+            Some(wasmi::TrapCode::OutOfFuel) => "out of fuel: the module spent its budget".to_owned(),
+            _ => format!("run trapped: {e}"),
+        })?;
     let out_ptr = (packed >> 32) as u32 as usize;
     let out_len = (packed & 0xffff_ffff) as u32 as usize;
 
@@ -152,4 +207,47 @@ fn read_guest(
     let end = ptr.checked_add(len)?;
     let slice = data.get(ptr..end)?;
     Some(String::from_utf8_lossy(slice).into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A module whose `run` never returns; alloc hands back offset 0.
+    const SPINNER: &[u8] = &[
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // header
+        0x01, 0x0c, 0x02, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7e, // types
+        0x03, 0x03, 0x02, 0x00, 0x01, // functions
+        0x05, 0x03, 0x01, 0x00, 0x01, // memory
+        0x07, 0x18, 0x03, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00, // exports
+        0x05, b'a', b'l', b'l', b'o', b'c', 0x00, 0x00, 0x03, b'r', b'u', b'n', 0x00, 0x01,
+        0x0a, 0x10, 0x02, 0x04, 0x00, 0x41, 0x00, 0x0b, // code: alloc
+        0x09, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x42, 0x00, 0x0b, // code: run loops forever
+    ];
+
+    fn args(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn a_caller_is_put_in_the_request() {
+        let request = serde_request("play", "", Some("al\"ice"));
+        assert_eq!(request, r#"{"command":"play","input":"","caller":{"id":"al\"ice"}}"#);
+        assert!(!serde_request("play", "", None).contains("caller"));
+    }
+
+    #[test]
+    fn flags_are_read_wherever_they_sit() {
+        let o = parse_args(&args(&["--caller", "u1", "m.wasm", "play", "x", "--fuel", "9"])).unwrap();
+        assert_eq!((o.caller.as_deref(), o.fuel, o.input.as_str()), (Some("u1"), Some(9), "x"));
+        assert!(parse_args(&args(&["--fuel", "many", "m.wasm", "play"])).is_err());
+        assert!(parse_args(&args(&["m.wasm"])).is_err());
+    }
+
+    #[test]
+    fn a_module_that_loops_forever_runs_out_of_fuel() {
+        let options = Options::new("spin.wasm", "go", "", None, Some(100_000));
+        let err = run_bytes(SPINNER, &options).unwrap_err();
+        assert!(err.starts_with("out of fuel"), "{err}");
+    }
 }

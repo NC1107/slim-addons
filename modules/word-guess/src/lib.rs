@@ -20,6 +20,14 @@ use serde::{Deserialize, Serialize};
 struct Request {
     command: String,
     input: String,
+    #[serde(default)]
+    caller: Caller,
+}
+
+#[derive(Deserialize, Default)]
+struct Caller {
+    #[serde(default)]
+    id: String,
 }
 
 #[derive(Serialize)]
@@ -76,7 +84,7 @@ fn handle(request: &[u8]) -> Vec<u8> {
         Err(err) => return serialize_err(format!("invalid request: {err}")),
     };
 
-    match command::apply(&parsed.command, &parsed.input) {
+    match command::apply(&parsed.command, &parsed.input, &parsed.caller.id) {
         Ok(output) => serialize_ok(output),
         Err(message) => serialize_err(message),
     }

@@ -34,7 +34,7 @@ pub fn execute(source: &str) -> Result<String, String> {
         .map_err(|err| err.to_string())?;
     install_console(&mut context).map_err(|err| err.to_string())?;
 
-    let result = context.eval(Source::from_bytes(source));
+    let result = context.eval(Source::from_bytes(source)).and_then(|value| context.run_jobs().map(|()| value));
     let printed = OUTPUT.with(|buf| buf.borrow().clone());
 
     match result {
@@ -133,5 +133,23 @@ mod tests {
     fn console_log_keeps_strings_unquoted_and_symbols_printable() {
         let out = execute("console.log('a', 1, Symbol('s'))").unwrap();
         assert_eq!(out, "a 1 Symbol(s)");
+    }
+
+    #[test]
+    fn promise_callbacks_run_before_the_output_is_read() {
+        let out = execute("Promise.resolve(7).then(v => console.log(v))").unwrap();
+        assert!(out.starts_with("7\n"), "the promise job never ran: {out:?}");
+    }
+
+    #[test]
+    fn code_after_an_await_runs() {
+        let out = execute("(async () => { await null; console.log('after') })()").unwrap();
+        assert!(out.starts_with("after"), "the continuation never ran: {out:?}");
+    }
+
+    #[test]
+    fn output_printed_in_a_job_that_then_throws_is_kept() {
+        let err = execute("Promise.resolve().then(() => { console.log('a'); null.x })").unwrap();
+        assert!(err.starts_with("a"), "{err:?}");
     }
 }

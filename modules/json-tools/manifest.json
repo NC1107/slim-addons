@@ -2,9 +2,9 @@
   "schema": 1,
   "id": "json-tools",
   "name": "JSON Tools",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "summary": "Pretty-print JSON with 2-space indentation.",
-  "description": "Adds a Format permission and a format command. A member who holds the permission can pretty-print a JSON string or run it as a JSON code block; invalid JSON comes back as an error with a line/column location.",
+  "description": "Adds a Format permission and a format command. A member who holds the permission can pretty-print a JSON string or run it as a JSON code block; only whitespace changes, so key order, duplicate keys and number text stay as written; invalid JSON comes back as an error with a line/column location.",
   "author": "slim-m",
   "homepage": "https://github.com/Slim-m-org/slim-addons",
   "runtime": {
@@ -17,8 +17,8 @@
   },
   "artifact": {
     "kind": "wasm",
-    "path": "modules/json-tools/0.1.1/module.wasm",
-    "sha256": "a7eb2da8c0936cb5ef2518d2180f6a032a4fc3d25830d6f1637f475e572cb818"
+    "path": "modules/json-tools/0.1.2/module.wasm",
+    "sha256": "851692fff503771848e6b613f6b93eda8ef4b0285fc33aeb2992fb8bd916565b"
   },
   "permissions": [
     {
