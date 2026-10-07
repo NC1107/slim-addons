@@ -73,13 +73,18 @@ fn run(path: &str, command: &str, input: &str) -> Result<String, String> {
     call_run(&mut store, &instance, request.as_bytes())
 }
 
-/// The request shape slim sends: `{"command":..., "input":...}`.
+/// The request shape slim sends: `{"command":..., "input":..., "entropy":...}`.
 ///
 /// Hand-built rather than pulling in serde, so this tool stays a single small
-/// dependency on the same engine slim uses and nothing more.
+/// dependency on the same engine slim uses and nothing more. slim gives every
+/// run a fresh `entropy`; set `RUN_MODULE_ENTROPY` to send one, and leave it
+/// unset to send none, as a host older than the field would.
 fn serde_request(command: &str, input: &str) -> String {
+    let entropy = std::env::var("RUN_MODULE_ENTROPY")
+        .map(|value| format!(",\"entropy\":\"{}\"", escape(&value)))
+        .unwrap_or_default();
     format!(
-        "{{\"command\":\"{}\",\"input\":\"{}\"}}",
+        "{{\"command\":\"{}\",\"input\":\"{}\"{entropy}}}",
         escape(command),
         escape(input)
     )
