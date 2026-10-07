@@ -17,6 +17,9 @@ use serde::{Deserialize, Serialize};
 struct Request {
     command: String,
     input: String,
+    /// Fresh per run from the host; absent from a host older than the field.
+    #[serde(default)]
+    entropy: String,
 }
 
 #[derive(Serialize)]
@@ -70,7 +73,7 @@ fn handle(request: &[u8]) -> Vec<u8> {
         return serialize_err(format!("unknown command: {}", parsed.command));
     }
 
-    match roll::roll(&parsed.input) {
+    match roll::roll(&parsed.input, &parsed.entropy) {
         Ok(output) => serialize_ok(output),
         Err(message) => serialize_err(message),
     }
